@@ -138,17 +138,37 @@ void DatabaseHandler::close_connection() {
 
 void DatabaseHandler::authorization_cache_insert_entry(const std::string& id_token_hash,
                                                        const IdTokenInfo& id_token_info) {
-    std::string sql = "INSERT OR REPLACE INTO AUTH_CACHE (ID_TOKEN_HASH, ID_TOKEN_INFO) VALUES "
-                      "(@id_token_hash, @id_token_info)";
+    std::string sql = "INSERT OR REPLACE INTO AUTH_CACHE (ID_TOKEN_HASH, ID_TOKEN_INFO, LAST_USED, EXPIRY_DATE) VALUES "
+                      "(@id_token_hash, @id_token_info, @last_used, @expiry_date)";
     SQLiteStatement insert_stmt(this->db, sql);
 
     insert_stmt.bind_text("@id_token_hash", id_token_hash);
     insert_stmt.bind_text("@id_token_info", json(id_token_info).dump(), SQLiteString::Transient);
+    if (id_token_info.cacheExpiryDateTime.has_value()) {
+        insert_stmt.bind_datetime("@expiry_date", id_token_info.cacheExpiryDateTime.value());
+    } else {
+        insert_stmt.bind_null("@expiry_date");
+    }
+    insert_stmt.bind_datetime("@last_used", DateTime());
 
     if (insert_stmt.step() != SQLITE_DONE) {
         EVLOG_error << "Could not insert into AUTH_CACHE table: " << sqlite3_errmsg(db);
         return;
     }
+}
+
+bool DatabaseHandler::authorization_cache_update_last_used(const std::string& id_token_hash) {
+    std::string sql = "UPDATE AUTH_CACHE SET LAST_USED = @last_used WHERE ID_TOKEN_HASH = @id_token_hash";
+    SQLiteStatement insert_stmt(this->db, sql);
+
+    insert_stmt.bind_datetime("@last_used", DateTime());
+    insert_stmt.bind_text("@id_token_hash", id_token_hash);
+
+    if (insert_stmt.step() != SQLITE_DONE) {
+        EVLOG_error << "Could not update AUTH_CACHE item: " << sqlite3_errmsg(this->db);
+        return false;
+    }
+    return true;
 }
 
 std::optional<IdTokenInfo> DatabaseHandler::authorization_cache_get_entry(const std::string& id_token_hash) {
@@ -186,8 +206,63 @@ void DatabaseHandler::authorization_cache_delete_entry(const std::string& id_tok
     }
 }
 
+bool DatabaseHandler::authorization_cache_delete_nr_of_oldest_entries(size_t nr_to_remove) {
+    try {
+        std::string sql = "DELETE FROM AUTH_CACHE WHERE ID_TOKEN_HASH IN (SELECT ID_TOKEN_HASH FROM AUTH_CACHE ORDER BY LAST_USED ASC LIMIT @nr_to_remove)";
+        SQLiteStatement delete_stmt(this->db, sql);
+
+        delete_stmt.bind_int("@nr_to_remove", nr_to_remove);
+
+        if (delete_stmt.step() != SQLITE_DONE) {
+            EVLOG_error << "Could not delete from table: " << sqlite3_errmsg(this->db);
+            return false;
+        }
+        return true;
+    } catch (const std::exception& e) {
+        EVLOG_error << "Exception while deleting from auth cache table: " << e.what();
+        return false;
+    }
+}
+
+bool DatabaseHandler::authorization_cache_delete_entries_with_expiry_date_before(DateTime now) {
+    try {
+        std::string sql = "DELETE FROM AUTH_CACHE WHERE ID_TOKEN_HASH IN (SELECT ID_TOKEN_HASH FROM AUTH_CACHE WHERE EXPIRY_DATE < @now)";
+        SQLiteStatement delete_stmt(this->db, sql);
+
+        delete_stmt.bind_datetime("@now", now);
+
+        if (delete_stmt.step() != SQLITE_DONE) {
+            EVLOG_error << "Could not delete from table: " << sqlite3_errmsg(this->db);
+            return false;
+        }
+        return true;
+    } catch (const std::exception& e) {
+        EVLOG_error << "Exception while deleting from auth cache table: " << e.what();
+        return false;
+    }
+}
+
 bool DatabaseHandler::authorization_cache_clear() {
     return this->clear_table("AUTH_CACHE");
+}
+
+void DatabaseHandler::authorization_cache_print_contents() {
+    try {
+        std::string sql = "SELECT * FROM AUTH_CACHE";
+        SQLiteStatement select_stmt(this->db, sql);
+
+        while (select_stmt.step() == SQLITE_ROW) {
+            if (select_stmt.column_type(3) == SQLITE_NULL) {
+                EVLOG_info << "Hash: " << select_stmt.column_text(0).substr(0,8) << ", json: " << select_stmt.column_text(1) << ", last_used: " << select_stmt.column_datetime(2) << ", exp: n/a";
+            } else {
+                EVLOG_info << "Hash: " << select_stmt.column_text(0).substr(0,8) << ", json: " << select_stmt.column_text(1) << ", last_used: " << select_stmt.column_datetime(2) << ", exp: " << select_stmt.column_datetime(3);
+            }
+        }
+    } catch (const json::exception& e) {
+        EVLOG_warning << "Could not parse data of IdTokenInfo: " << e.what();
+    } catch (const std::exception& e) {
+        EVLOG_error << "Unknown Error while parsing IdTokenInfo: " << e.what();
+    }
 }
 
 size_t DatabaseHandler::authorization_cache_get_binary_size() {

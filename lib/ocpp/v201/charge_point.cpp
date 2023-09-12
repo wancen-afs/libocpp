@@ -583,6 +583,13 @@ AuthorizeResponse ChargePoint::validate_token(const IdToken id_token, const std:
             .value_or(false);
 
     if (auth_cache_enabled) {
+        // Ideally this is deferred to a periodic thread but we need to have thread safe access to the database to do
+        // that
+        EVLOG_info << "******** Time based auth cache cleanup";
+        this->database_handler->authorization_cache_delete_entries_with_expiry_date_before(DateTime());
+        this->update_authorization_cache_size();
+        this->database_handler->authorization_cache_print_contents();
+
         const auto cache_entry = this->database_handler->authorization_cache_get_entry(hashed_id_token);
         if (cache_entry.has_value()) {
             if ((cache_entry.value().cacheExpiryDateTime.has_value() and
@@ -594,6 +601,9 @@ AuthorizeResponse ChargePoint::validate_token(const IdToken id_token, const std:
             } else if (this->device_model->get_value<bool>(ControllerComponentVariables::LocalPreAuthorize) and
                        cache_entry.value().status == AuthorizationStatusEnum::Accepted) {
                 EVLOG_info << "Found valid entry in AuthCache";
+                this->database_handler->authorization_cache_update_last_used(hashed_id_token);
+                EVLOG_info << "****************************";
+                this->database_handler->authorization_cache_print_contents();
                 response.idTokenInfo = cache_entry.value();
                 return response;
             } else {
@@ -616,6 +626,34 @@ AuthorizeResponse ChargePoint::validate_token(const IdToken id_token, const std:
         this->update_id_token_cache_lifetime(response.idTokenInfo);
         this->database_handler->authorization_cache_insert_entry(hashed_id_token, response.idTokenInfo);
         this->update_authorization_cache_size();
+        EVLOG_info << "****************************";
+        this->database_handler->authorization_cache_print_contents();
+
+        // auto& auth_cache_size = ControllerComponentVariables::AuthCacheStorage;
+        // if (auth_cache_size.variable.has_value()) {
+        //     auto entries = this->database_handler->get_local_authorization_list_number_of_entries();
+        //     auto size = this->database_handler->get_auth_cache_binary_size();
+        //     this->device_model->set_read_only_value(auth_cache_size.component, auth_cache_size.variable.value(),
+
+        // Ideally this is deferred to a lower priority thread but we need to have thread safe access to the database to
+        // do that The 500 needs to be replaced with the max limit auto max_storage = this->device_model
+        //                        ->get_variable_meta_data(ControllerComponentVariables::AuthCacheStorage.component,
+        //                                                 ControllerComponentVariables::AuthCacheStorage.variable.value())
+        //                        .value()
+        //                        .characteristics.maxLimit;
+        auto max_storage =
+            std::make_optional(500.0F); // float because currently the maxLimit is a float in the device model
+        if (max_storage.has_value()) {
+            while (this->device_model->get_value<int>(ControllerComponentVariables::AuthCacheStorage) >
+                   max_storage.value()) {
+                EVLOG_info << "Removing oldest item";
+                this->database_handler->authorization_cache_delete_nr_of_oldest_entries(1);
+                this->update_authorization_cache_size();
+                this->database_handler->authorization_cache_print_contents();
+            }
+        } else {
+            EVLOG_info << "No max limit for auth cache storage";
+        }
     }
 
     return response;
