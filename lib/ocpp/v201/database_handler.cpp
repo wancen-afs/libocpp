@@ -212,7 +212,8 @@ void DatabaseHandler::authorization_cache_delete_entry(const std::string& id_tok
 
 bool DatabaseHandler::authorization_cache_delete_nr_of_oldest_entries(size_t nr_to_remove) {
     try {
-        std::string sql = "DELETE FROM AUTH_CACHE WHERE ID_TOKEN_HASH IN (SELECT ID_TOKEN_HASH FROM AUTH_CACHE ORDER BY LAST_USED ASC LIMIT @nr_to_remove)";
+        std::string sql = "DELETE FROM AUTH_CACHE WHERE ID_TOKEN_HASH IN (SELECT ID_TOKEN_HASH FROM AUTH_CACHE ORDER "
+                          "BY LAST_USED ASC LIMIT @nr_to_remove)";
         SQLiteStatement delete_stmt(this->db, sql);
 
         delete_stmt.bind_int("@nr_to_remove", nr_to_remove);
@@ -230,7 +231,8 @@ bool DatabaseHandler::authorization_cache_delete_nr_of_oldest_entries(size_t nr_
 
 bool DatabaseHandler::authorization_cache_delete_entries_with_expiry_date_before(DateTime now) {
     try {
-        std::string sql = "DELETE FROM AUTH_CACHE WHERE ID_TOKEN_HASH IN (SELECT ID_TOKEN_HASH FROM AUTH_CACHE WHERE EXPIRY_DATE < @now)";
+        std::string sql = "DELETE FROM AUTH_CACHE WHERE ID_TOKEN_HASH IN (SELECT ID_TOKEN_HASH FROM AUTH_CACHE WHERE "
+                          "EXPIRY_DATE < @now)";
         SQLiteStatement delete_stmt(this->db, sql);
 
         delete_stmt.bind_datetime("@now", now);

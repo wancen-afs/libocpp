@@ -183,11 +183,12 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
 
             this->database_handler->authorization_cache_delete_entries_with_expiry_date_before(DateTime());
 
-            auto max_storage = this->device_model
-                                   ->get_variable_meta_data(ControllerComponentVariables::AuthCacheStorage.component,
-                                                            ControllerComponentVariables::AuthCacheStorage.variable.value())
-                                   .value()
-                                   .characteristics.maxLimit;
+            auto max_storage =
+                this->device_model
+                    ->get_variable_meta_data(ControllerComponentVariables::AuthCacheStorage.component,
+                                             ControllerComponentVariables::AuthCacheStorage.variable.value())
+                    .value()
+                    .characteristics.maxLimit;
             if (max_storage.has_value()) {
                 while (this->database_handler->authorization_cache_get_binary_size() > max_storage.value()) {
                     this->database_handler->authorization_cache_delete_nr_of_oldest_entries(1);
