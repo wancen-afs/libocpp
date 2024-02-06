@@ -173,7 +173,7 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
         while (true) {
             // Wait for next wakeup or timeout
             std::unique_lock<std::mutex> lk(this->auth_cache_cleanup_mutex);
-            auto wakeup_reason = this->auth_cache_cleanup_cv.wait_for(lk, std::chrono::seconds(15));
+            auto wakeup_reason = this->auth_cache_cleanup_cv.wait_for(lk, std::chrono::minutes(15));
 
             if (wakeup_reason == std::cv_status::timeout) {
                 EVLOG_debug << "Time based authorization cache cleanup";
@@ -183,26 +183,20 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
 
             this->database_handler->authorization_cache_delete_entries_with_expiry_date_before(DateTime());
 
-            // The 500 needs to be replaced with the max limit
-            // auto max_storage = this->device_model
-            //                        ->get_variable_meta_data(ControllerComponentVariables::AuthCacheStorage.component,
-            //                                                 ControllerComponentVariables::AuthCacheStorage.variable.value())
-            //                        .value()
-            //                        .characteristics.maxLimit;
-            auto max_storage =
-                std::make_optional(500.0F); // float because currently the maxLimit is a float in the device model
+            auto max_storage = this->device_model
+                                   ->get_variable_meta_data(ControllerComponentVariables::AuthCacheStorage.component,
+                                                            ControllerComponentVariables::AuthCacheStorage.variable.value())
+                                   .value()
+                                   .characteristics.maxLimit;
             if (max_storage.has_value()) {
                 size_t used_storage = this->database_handler->authorization_cache_get_binary_size();
                 while (used_storage > max_storage.value()) {
                     this->database_handler->authorization_cache_delete_nr_of_oldest_entries(1);
                     used_storage = this->database_handler->authorization_cache_get_binary_size();
                 }
-            } else {
-                EVLOG_info << "No max limit for auth cache storage";
             }
 
             this->update_authorization_cache_size();
-            this->database_handler->authorization_cache_print_contents();
         }
     });
 }
@@ -632,8 +626,6 @@ AuthorizeResponse ChargePoint::validate_token(const IdToken id_token, const std:
                        cache_entry.value().status == AuthorizationStatusEnum::Accepted) {
                 EVLOG_info << "Found valid entry in AuthCache";
                 this->database_handler->authorization_cache_update_last_used(hashed_id_token);
-                EVLOG_info << "****************************";
-                this->database_handler->authorization_cache_print_contents();
                 response.idTokenInfo = cache_entry.value();
                 return response;
             } else {
@@ -655,10 +647,8 @@ AuthorizeResponse ChargePoint::validate_token(const IdToken id_token, const std:
     if (auth_cache_enabled) {
         this->update_id_token_cache_lifetime(response.idTokenInfo);
         this->database_handler->authorization_cache_insert_entry(hashed_id_token, response.idTokenInfo);
-        this->update_authorization_cache_size();
-        EVLOG_info << "****************************";
-        this->database_handler->authorization_cache_print_contents();
 
+        // Trigger auth cache cleanup since we added a new token. This will also update the used memory for the cache.
         this->auth_cache_cleanup_cv.notify_one();
     }
 

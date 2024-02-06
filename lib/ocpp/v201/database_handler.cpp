@@ -250,25 +250,6 @@ bool DatabaseHandler::authorization_cache_clear() {
     return this->clear_table("AUTH_CACHE");
 }
 
-void DatabaseHandler::authorization_cache_print_contents() {
-    try {
-        std::string sql = "SELECT * FROM AUTH_CACHE";
-        SQLiteStatement select_stmt(this->db, sql);
-
-        while (select_stmt.step() == SQLITE_ROW) {
-            if (select_stmt.column_type(3) == SQLITE_NULL) {
-                EVLOG_info << "Hash: " << select_stmt.column_text(0).substr(0,8) << ", json: " << select_stmt.column_text(1) << ", last_used: " << select_stmt.column_datetime(2) << ", exp: n/a";
-            } else {
-                EVLOG_info << "Hash: " << select_stmt.column_text(0).substr(0,8) << ", json: " << select_stmt.column_text(1) << ", last_used: " << select_stmt.column_datetime(2) << ", exp: " << select_stmt.column_datetime(3);
-            }
-        }
-    } catch (const json::exception& e) {
-        EVLOG_warning << "Could not parse data of IdTokenInfo: " << e.what();
-    } catch (const std::exception& e) {
-        EVLOG_error << "Unknown Error while parsing IdTokenInfo: " << e.what();
-    }
-}
-
 size_t DatabaseHandler::authorization_cache_get_binary_size() {
     try {
         std::string sql = "SELECT SUM(\"payload\") FROM \"dbstat\" WHERE name='AUTH_CACHE';";
