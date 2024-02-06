@@ -189,10 +189,8 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
                                    .value()
                                    .characteristics.maxLimit;
             if (max_storage.has_value()) {
-                size_t used_storage = this->database_handler->authorization_cache_get_binary_size();
-                while (used_storage > max_storage.value()) {
+                while (this->database_handler->authorization_cache_get_binary_size() > max_storage.value()) {
                     this->database_handler->authorization_cache_delete_nr_of_oldest_entries(1);
-                    used_storage = this->database_handler->authorization_cache_get_binary_size();
                 }
             }
 
