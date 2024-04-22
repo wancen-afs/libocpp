@@ -391,8 +391,6 @@ private:
     // reference to evses
     std::map<int32_t, std::unique_ptr<EvseInterface>> evses;
 
-    // Interrupted transactions
-    std::vector<TransactionInterruptedResponse> interrupted_transactions;
     // utility
     std::unique_ptr<MessageQueue<v201::MessageType>> message_queue;
     std::unique_ptr<DeviceModel> device_model;
@@ -747,8 +745,7 @@ private:
     /// \brief Immediately execute the given \param request to change the operational state of a component
     /// If \param persist is set to true, the change will be persisted across a reboot
     void execute_change_availability_request(ChangeAvailabilityRequest request, bool persist);
-    /// \brief Perform a check to see if there are any interrupted transactions and resume them.
-    void resume_interrupted_transactions();
+
 
 public:
     /// \brief Construct a new ChargePoint object
