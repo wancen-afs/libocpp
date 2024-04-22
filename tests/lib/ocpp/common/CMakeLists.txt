@@ -4,3 +4,7 @@ target_sources(libocpp_unit_tests PRIVATE
     test_database_schema_updater.cpp
     test_message_queue.cpp
 )
+
+target_include_directories(libocpp_unit_tests PRIVATE
+    .
+)

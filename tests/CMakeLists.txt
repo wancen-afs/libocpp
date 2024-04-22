@@ -1,6 +1,12 @@
 set(MIGRATION_FILES_LOCATION_V16 "${CMAKE_CURRENT_BINARY_DIR}/resources/v16/migration_files")
 set(MIGRATION_FILES_LOCATION_V201 "${CMAKE_CURRENT_BINARY_DIR}/resources/v201/migration_files")
 
+target_compile_definitions(ocpp PRIVATE
+        UNIT_TESTING
+)
+
+
+
 add_executable(database_tests database_tests.cpp)
 
 target_link_libraries(database_tests PRIVATE

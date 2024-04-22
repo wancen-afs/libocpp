@@ -168,11 +168,29 @@ bool DatabaseHandler::authorization_cache_delete_nr_of_oldest_entries(size_t nr_
 bool DatabaseHandler::authorization_cache_delete_expired_entries(
     std::optional<std::chrono::seconds> auth_cache_lifetime) {
     try {
+        DateTime now;
+        auto select = this->database->new_statement(
+            "SELECT ID_TOKEN_HASH FROM AUTH_CACHE WHERE EXPIRY_DATE < @before_date OR LAST_USED < @before_last_used");
+        select->bind_datetime("@before_date", now);
+        if (auth_cache_lifetime.has_value()) {
+            select->bind_datetime("@before_last_used", DateTime(now.to_time_point() - auth_cache_lifetime.value()));
+        } else {
+            select->bind_null("@before_last_used");
+        }
+
+        bool first = true;
+        while (select->step() == SQLITE_ROW) {
+            if (first) {
+                first = false;
+                EVLOG_info << "Removing from database:";
+            }
+            EVLOG_info << "Hash: " << select->column_text(0);
+        }
+
         std::string sql = "DELETE FROM AUTH_CACHE WHERE ID_TOKEN_HASH IN (SELECT ID_TOKEN_HASH FROM AUTH_CACHE WHERE "
                           "EXPIRY_DATE < @before_date OR LAST_USED < @before_last_used)";
         auto delete_stmt = this->database->new_statement(sql);
 
-        DateTime now;
         delete_stmt->bind_datetime("@before_date", now);
         if (auth_cache_lifetime.has_value()) {
             delete_stmt->bind_datetime("@before_last_used",

@@ -26,9 +26,11 @@ DateTime& DateTime::operator=(const char* c) {
     return *this;
 }
 
+#ifndef UNIT_TESTING
 DateTimeImpl::DateTimeImpl() {
     this->timepoint = date::utc_clock::now();
 }
+#endif
 
 DateTimeImpl::DateTimeImpl(std::chrono::time_point<date::utc_clock> timepoint) : timepoint(timepoint) {
 }
