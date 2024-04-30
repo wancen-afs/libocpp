@@ -8,7 +8,39 @@
 using namespace ocpp::common;
 using namespace ocpp::v201;
 
-class DatabaseHandlerTest : public ::testing::Test {
+using namespace std::chrono_literals;
+using namespace ::testing;
+
+static std::chrono::time_point<date::utc_clock> timepoint;
+
+class TimeProvider {
+public:
+    MOCK_METHOD(std::chrono::time_point<date::utc_clock>, get_timepoint, ());
+};
+
+static std::weak_ptr<TimeProvider> g_Provider;
+
+namespace ocpp {
+DateTimeImpl::DateTimeImpl() {
+    auto provider = g_Provider.lock();
+    if (provider != nullptr) {
+        this->timepoint = provider->get_timepoint();
+    } else {
+        EVLOG_error << "Going for default value";
+        this->timepoint = std::chrono::time_point<date::utc_clock>(0s);
+    }
+}
+} // namespace ocpp
+
+class TimeProviderBase {
+public:
+    std::shared_ptr<TimeProvider> m_pTimeProvider;
+    TimeProviderBase() : m_pTimeProvider(std::make_shared<TimeProvider>()) {
+        g_Provider = m_pTimeProvider;
+    }
+};
+
+class DatabaseHandlerTest : public ::testing::Test, public TimeProviderBase {
 public:
     static constexpr std::string_view shared_memory_path{"file::memory:?cache=shared"};
     std::unique_ptr<DatabaseHandler> pHandler;
@@ -55,12 +87,27 @@ TEST_F(DatabaseHandlerTest, test_removing_expired_tokens) {
     IdTokenInfo id_token_info;
     id_token_info.status = AuthorizationStatusEnum::Accepted;
 
+    EXPECT_CALL(*m_pTimeProvider, get_timepoint)
+        .WillOnce(Return(std::chrono::time_point<date::utc_clock>(10s)))
+        .WillOnce(Return(std::chrono::time_point<date::utc_clock>(20s)));
+
     this->pHandler->authorization_cache_insert_entry("token1", id_token_info);
+    this->pHandler->authorization_cache_insert_entry("token2", id_token_info);
 
-    auto result = this->pHandler->authorization_cache_get_entry("token1");
-    EXPECT_NE(result, std::nullopt);
+    EXPECT_NE(this->pHandler->authorization_cache_get_entry("token1"), std::nullopt);
+    EXPECT_NE(this->pHandler->authorization_cache_get_entry("token2"), std::nullopt);
 
-    DateTime();
+    EXPECT_CALL(*m_pTimeProvider, get_timepoint).WillOnce(Return(std::chrono::time_point<date::utc_clock>(30s)));
+
+    EXPECT_TRUE(this->pHandler->authorization_cache_delete_expired_entries(15s));
+
+    EXPECT_EQ(this->pHandler->authorization_cache_get_entry("token1"), std::nullopt);
+    EXPECT_NE(this->pHandler->authorization_cache_get_entry("token2"), std::nullopt);
+
+    // EXPECT_CALL(*m_pTimeProvider,
+    // get_timepoint).WillOnce(::testing::Return(std::chrono::time_point<date::utc_clock>(10s)));
+
+    // EXPECT_EQ(std::chrono::time_point<date::utc_clock>(10s), DateTime().to_time_point());
 
     // result = this->pHandler->authorization_cache_get_entry("token2");
     // EXPECT_NE(result, std::nullopt);
