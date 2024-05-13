@@ -128,7 +128,7 @@ PeriodDateTimePair SmartChargingHandler::find_period_at(const ocpp::DateTime& ti
         time_point<date::utc_clock> period_end_time;
         for (size_t i = 0; i < periods.size(); i++) {
             const auto period_end_time = get_period_end_time(i, period_start_time.value(), schedule, periods);
-            if (time >= period_start_time.value() && time < period_end_time) {
+            if (time >= period_start_time.value() && time <= period_end_time) {
                 return {periods.at(i), ocpp::DateTime(period_end_time)};
             }
             period_start_time.emplace(ocpp::DateTime(period_end_time));
@@ -597,7 +597,7 @@ ocpp::DateTime SmartChargingHandler::get_next_temp_time(const ocpp::DateTime tem
             auto period_start_time = period_start_time_opt.value();
             for (size_t i = 0; i < periods.size(); i++) {
                 auto period_end_time = get_period_end_time(i, period_start_time, schedule, periods);
-                if (temp_time >= period_start_time && temp_time < period_end_time &&
+                if (temp_time < period_end_time &&
                     period_end_time < lowest_next_time) {
                     lowest_next_time = period_end_time;
                 }
