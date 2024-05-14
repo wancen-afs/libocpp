@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright Pionix GmbH and Contributors to EVerest
+
+#ifndef PROFILE_TESTS_COMMON_HPP
+#define PROFILE_TESTS_COMMON_HPP
+
+#include <iostream>
+#include <optional>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include "ocpp/common/types.hpp"
+#include "ocpp/v16/ocpp_types.hpp"
+#include "ocpp/v16/types.hpp"
+
+// ----------------------------------------------------------------------------
+// helper functions
+namespace ocpp {
+inline bool operator==(const DateTime& a, const DateTime& b) {
+    return a.to_time_point() == b.to_time_point();
+}
+
+inline bool operator==(const DateTime& a, const std::string& b) {
+    return a == DateTime(b);
+}
+
+inline bool operator==(const DateTime& a, const char* b) {
+    return a == DateTime(b);
+}
+} // namespace ocpp
+
+namespace ocpp::v16 {
+using json = nlohmann::json;
+
+template <typename A> bool optional_equal(const std::optional<A>& a, const std::optional<A>& b) {
+    bool bRes = true;
+    if (bRes && a.has_value() && b.has_value()) {
+        bRes = a.value() == b.value();
+    }
+    return bRes;
+}
+
+std::ostream& operator<<(std::ostream& os, const std::vector<ChargingProfile>& profiles);
+std::ostream& operator<<(std::ostream& os, const std::vector<ChargingSchedulePeriod>& profiles);
+std::ostream& operator<<(std::ostream& os, const std::vector<EnhancedChargingSchedulePeriod>& profiles);
+std::ostream& operator<<(std::ostream& os, const EnhancedChargingSchedule& schedule);
+bool operator==(const ChargingSchedulePeriod& a, const ChargingSchedulePeriod& b);
+bool operator==(const ChargingSchedule& a, const ChargingSchedule& b);
+bool operator==(const ChargingSchedulePeriod& a, const EnhancedChargingSchedulePeriod& b);
+bool operator==(const ChargingSchedule& a, const EnhancedChargingSchedule& b);
+bool operator==(const ChargingProfile& a, const ChargingProfile& b);
+bool nearly_equal(const ocpp::DateTime& a, const ocpp::DateTime& b);
+
+} // namespace ocpp::v16
+
+#endif // PROFILE_TESTS_COMMON_HPP
