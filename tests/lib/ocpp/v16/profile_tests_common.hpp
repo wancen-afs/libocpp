@@ -34,8 +34,8 @@ namespace ocpp::v16 {
 using json = nlohmann::json;
 
 template <typename A> bool optional_equal(const std::optional<A>& a, const std::optional<A>& b) {
-    bool bRes = true;
-    if (bRes && a.has_value() && b.has_value()) {
+    bool bRes{true};
+    if (a.has_value() && b.has_value()) {
         bRes = a.value() == b.value();
     }
     return bRes;
@@ -48,7 +48,9 @@ std::ostream& operator<<(std::ostream& os, const EnhancedChargingSchedule& sched
 bool operator==(const ChargingSchedulePeriod& a, const ChargingSchedulePeriod& b);
 bool operator==(const ChargingSchedule& a, const ChargingSchedule& b);
 bool operator==(const ChargingSchedulePeriod& a, const EnhancedChargingSchedulePeriod& b);
+bool operator==(const EnhancedChargingSchedulePeriod& a, const EnhancedChargingSchedulePeriod& b);
 bool operator==(const ChargingSchedule& a, const EnhancedChargingSchedule& b);
+bool operator==(const EnhancedChargingSchedule& a, const EnhancedChargingSchedule& b);
 bool operator==(const ChargingProfile& a, const ChargingProfile& b);
 bool nearly_equal(const ocpp::DateTime& a, const ocpp::DateTime& b);
 

@@ -99,6 +99,14 @@ bool operator==(const ChargingSchedulePeriod& a, const EnhancedChargingScheduleP
     return bRes;
 }
 
+bool operator==(const EnhancedChargingSchedulePeriod& a, const EnhancedChargingSchedulePeriod& b) {
+    bool bRes = a.startPeriod == b.startPeriod;
+    bRes = bRes && (a.limit == b.limit);
+    bRes = bRes && (a.stackLevel == b.stackLevel);
+    bRes = bRes && (a.numberPhases.value_or(-1) == b.numberPhases.value_or(-1));
+    return bRes;
+}
+
 bool operator==(const ChargingSchedule& a, const EnhancedChargingSchedule& b) {
     bool bRes = true;
     auto min = std::min(a.chargingSchedulePeriod.size(), b.chargingSchedulePeriod.size());
@@ -120,6 +128,21 @@ bool operator==(const ChargingSchedule& a, const EnhancedChargingSchedule& b) {
     if (a.duration.has_value() && b.duration.has_value()) {
         EXPECT_EQ(a.duration.value(), b.duration.value());
     }
+    return bRes;
+}
+
+bool operator==(const EnhancedChargingSchedule& a, const EnhancedChargingSchedule& b) {
+    const DateTime opt("1970-01-01T00:00:00Z");
+    bool bRes = a.chargingSchedulePeriod.size() == b.chargingSchedulePeriod.size();
+    bRes = bRes && (a.chargingRateUnit == b.chargingRateUnit);
+    if (bRes) {
+        for (std::uint8_t i = 0; i < a.chargingSchedulePeriod.size(); i++) {
+            bRes = bRes && (a.chargingSchedulePeriod[i] == b.chargingSchedulePeriod[i]);
+        }
+    }
+    bRes = bRes && (a.duration.value_or(-1) == b.duration.value_or(-1));
+    bRes = bRes && (a.startSchedule.value_or(opt) == b.startSchedule.value_or(opt));
+    bRes = bRes && (a.minChargingRate.value_or(-1.0) == b.minChargingRate.value_or(-1.0));
     return bRes;
 }
 

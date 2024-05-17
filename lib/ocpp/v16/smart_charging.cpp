@@ -199,7 +199,9 @@ EnhancedChargingSchedule SmartChargingHandler::calculate_enhanced_composite_sche
         charging_rate_unit.emplace(ChargingRateUnit::A);
     }
 
-    EnhancedChargingSchedule composite_schedule; // the schedule that will be returned
+    EnhancedChargingSchedule composite_schedule;   // the schedule that will be returned
+    composite_schedule.startSchedule = start_time; // ensure the start of the composite schedule is known
+
     composite_schedule.chargingRateUnit = charging_rate_unit.value();
     composite_schedule.duration.emplace(
         duration_cast<seconds>(end_time.to_time_point() - start_time.to_time_point()).count());
@@ -597,8 +599,7 @@ ocpp::DateTime SmartChargingHandler::get_next_temp_time(const ocpp::DateTime tem
             auto period_start_time = period_start_time_opt.value();
             for (size_t i = 0; i < periods.size(); i++) {
                 auto period_end_time = get_period_end_time(i, period_start_time, schedule, periods);
-                if (temp_time < period_end_time &&
-                    period_end_time < lowest_next_time) {
+                if (temp_time < period_end_time && period_end_time < lowest_next_time) {
                     lowest_next_time = period_end_time;
                 }
                 period_start_time = period_end_time;

@@ -128,8 +128,14 @@ protected:
     std::unique_ptr<ocpp::common::DatabaseConnectionInterface> database_interface;
 
     void add_connectors(unsigned int n) {
-        for (unsigned int i = 1; i <= n; i++) {
-            connectors[i] = std::make_shared<Connector>(i);
+        for (unsigned int i = 0; i <= n; i++) {
+            if (connectors[i] == nullptr) {
+                // create connector
+                connectors[i] = std::make_shared<Connector>(i);
+            } else {
+                // reset connector
+                *connectors[i] = Connector(i);
+            }
         }
     }
 
