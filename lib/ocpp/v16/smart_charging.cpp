@@ -95,7 +95,7 @@ ocpp::DateTime get_period_end_time(const int period_index, const ocpp::DateTime&
         period_diff_in_seconds = schedule.duration.value() - periods.at(period_index).startPeriod;
         return ocpp::DateTime(period_start_time.to_time_point() + seconds(period_diff_in_seconds));
     } else {
-        return ocpp::DateTime(date::utc_clock::now() + hours(std::numeric_limits<int>::max()));
+        return ocpp::DateTime(period_start_time.to_time_point() + hours(std::numeric_limits<int>::max()));
     }
 }
 
@@ -135,7 +135,7 @@ PeriodDateTimePair SmartChargingHandler::find_period_at(const ocpp::DateTime& ti
         }
     }
 
-    return {std::nullopt, ocpp::DateTime(date::utc_clock::now() + hours(std::numeric_limits<int>::max()))};
+    return {std::nullopt, ocpp::DateTime(time.to_time_point() + hours(std::numeric_limits<int>::max()))};
 }
 
 void SmartChargingHandler::clear_expired_profiles() {
@@ -590,7 +590,7 @@ std::optional<ocpp::DateTime> SmartChargingHandler::get_profile_start_time(const
 ocpp::DateTime SmartChargingHandler::get_next_temp_time(const ocpp::DateTime temp_time,
                                                         const std::vector<ChargingProfile>& valid_profiles,
                                                         const int connector_id) {
-    auto lowest_next_time = ocpp::DateTime(date::utc_clock::now() + hours(std::numeric_limits<int>::max()));
+    auto lowest_next_time = ocpp::DateTime(temp_time.to_time_point() + hours(std::numeric_limits<int>::max()));
     for (const auto& profile : valid_profiles) {
         const auto schedule = profile.chargingSchedule;
         const auto periods = schedule.chargingSchedulePeriod;

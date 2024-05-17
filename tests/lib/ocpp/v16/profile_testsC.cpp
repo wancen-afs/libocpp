@@ -196,7 +196,7 @@ TEST_F(ProfileTestsC, Setup) {
 
     DateTime session_start("2024-01-01T07:00:00Z");
 
-    configure();
+    configure_transaction(session_start);
     ASSERT_EQ(connectors.size(), 2);
     ASSERT_NE(connectors[1], nullptr);
     ASSERT_EQ(connectors[1]->transaction, nullptr);
@@ -208,7 +208,7 @@ TEST_F(ProfileTestsC, Setup) {
 
     EXPECT_EQ(connectors[1]->transaction->get_start_energy_wh()->timestamp, session_start);
 
-    configure();
+    configure_transaction(session_start);
     ASSERT_EQ(connectors.size(), 2);
     ASSERT_NE(connectors[1], nullptr);
     ASSERT_EQ(connectors[1]->transaction, nullptr);
@@ -436,7 +436,7 @@ TEST_F(ProfileTestsC, MinimumNoSession) {
     const std::int32_t connector_id{1};
     DateTime start_time("2024-01-05T11:55:00Z");
     DateTime end_time("2024-01-05T12:05:00Z");
-    configure();
+    configure_transaction(start_time);
     SmartChargingHandler handler(connectors, database_handler, true);
     handler.add_tx_default_profile(profileMinimum, connector_id);
 
@@ -481,7 +481,7 @@ TEST_F(ProfileTestsC, DailyRecurringAltNotValidYet) {
               profileMinimum.chargingSchedule.chargingSchedulePeriod[0].limit);
 
     // now without a session
-    configure();
+    configure_transaction(session_start);
     handler.add_tx_default_profile(profileRecurringAlt, connector_id);
     handler.add_tx_default_profile(profileMinimum, connector_id);
 
@@ -528,7 +528,7 @@ TEST_F(ProfileTestsC, DailyRecurringAltAlmostValid) {
               profileRecurringAlt.chargingSchedule.chargingSchedulePeriod[0].limit);
 
     // now without a session
-    configure();
+    configure_transaction(session_start);
     handler.add_tx_default_profile(profileRecurringAlt, connector_id);
     handler.add_tx_default_profile(profileMinimum, connector_id);
 
@@ -574,7 +574,7 @@ TEST_F(ProfileTestsC, DailyRecurringAltDuring) {
               profileRecurringAlt.chargingSchedule.chargingSchedulePeriod[0].limit);
 
     // now without a session
-    configure();
+    configure_transaction(session_start);
     handler.add_tx_default_profile(profileRecurringAlt, connector_id);
     handler.add_tx_default_profile(profileMinimum, connector_id);
 
@@ -620,7 +620,7 @@ TEST_F(ProfileTestsC, DailyRecurringAltApproachingEnd) {
               profileMinimum.chargingSchedule.chargingSchedulePeriod[0].limit);
 
     // now without a session
-    configure();
+    configure_transaction(session_start);
     handler.add_tx_default_profile(profileRecurringAlt, connector_id);
     handler.add_tx_default_profile(profileMinimum, connector_id);
 
@@ -666,7 +666,7 @@ TEST_F(ProfileTestsC, DailyRecurringAltNextDay) {
               profileMinimum.chargingSchedule.chargingSchedulePeriod[0].limit);
 
     // now without a session
-    configure();
+    configure_transaction(session_start);
     handler.add_tx_default_profile(profileRecurringAlt, connector_id);
     handler.add_tx_default_profile(profileMinimum, connector_id);
 
@@ -712,7 +712,7 @@ TEST_F(ProfileTestsC, DailyRecurringAltNextDayStart) {
               profileRecurringAlt.chargingSchedule.chargingSchedulePeriod[0].limit);
 
     // now without a session
-    configure();
+    configure_transaction(session_start);
     handler.add_tx_default_profile(profileRecurringAlt, connector_id);
     handler.add_tx_default_profile(profileMinimum, connector_id);
 
@@ -761,7 +761,7 @@ TEST_F(ProfileTestsC, DailyRecurringAltApproachingInvalid) {
               profileMinimum.chargingSchedule.chargingSchedulePeriod[0].limit);
 
     // now without a session
-    configure();
+    configure_transaction(session_start);
     handler.add_tx_default_profile(profileRecurringAlt, connector_id);
     handler.add_tx_default_profile(profileMinimum, connector_id);
 
@@ -858,7 +858,7 @@ TEST_F(ProfileTestsC, Issue609During) {
     const std::int32_t duration = 21540;
     DateTime start_time(profile609A_startSchedule.to_time_point() + minutes(1));
     DateTime end_time(start_time.to_time_point() + seconds(duration));
-    configure();
+    configure_transaction(start_time);
     SmartChargingHandler handler(connectors, database_handler, true);
     handler.add_tx_default_profile(profile609A, 0);
     handler.add_tx_default_profile(profile609B, 0);
@@ -887,7 +887,7 @@ TEST_F(ProfileTestsC, Issue609Before) {
     const std::int32_t duration = 21601;
     DateTime start_time(profile609A_startSchedule.to_time_point() - seconds(1));
     DateTime end_time(start_time.to_time_point() + seconds(duration));
-    configure();
+    configure_transaction(start_time);
     SmartChargingHandler handler(connectors, database_handler, true);
     handler.add_tx_default_profile(profile609A, 0);
     handler.add_tx_default_profile(profile609B, 0);
@@ -1013,7 +1013,7 @@ TEST_F(ProfileTestsC, ChargeRateW) {
     const std::int32_t duration = 3600 * 2;
     DateTime start_time = profileWatts_startSchedule;
     DateTime end_time(start_time.to_time_point() + seconds(duration));
-    configure();
+    configure_transaction(start_time);
     SmartChargingHandler handler(connectors, database_handler, true);
     handler.add_tx_default_profile(profileWatts, 0);
     handler.add_tx_default_profile(profileAmps, 0);
@@ -1072,7 +1072,7 @@ TEST_F(ProfileTestsC, ChargeRateA) {
     const std::int32_t duration = 3600 * 2;
     DateTime start_time = profileWatts_startSchedule;
     DateTime end_time(start_time.to_time_point() + seconds(duration));
-    configure();
+    configure_transaction(start_time);
     SmartChargingHandler handler(connectors, database_handler, true);
     handler.add_tx_default_profile(profileWatts, 0);
     handler.add_tx_default_profile(profileAmps, 0);
