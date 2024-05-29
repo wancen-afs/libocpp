@@ -130,7 +130,8 @@ PeriodDateTimePair SmartChargingHandler::find_period_at(const ocpp::DateTime& ti
         return {std::nullopt, ocpp::DateTime(time.to_time_point() + hours(std::numeric_limits<int>::max()))};
     }
 
-    EVLOG_critical << "find_period_at_period_start_time: " << period_start_time.value().to_rfc3339() << " profile id : " << profile.chargingProfileId;
+    EVLOG_critical << "find_period_at_period_start_time: " << period_start_time.value().to_rfc3339()
+                   << " profile id : " << profile.chargingProfileId;
 
     if (period_start_time) {
         const auto periods = schedule.chargingSchedulePeriod;
@@ -630,6 +631,22 @@ ocpp::DateTime SmartChargingHandler::get_next_temp_time(const ocpp::DateTime tem
                     lowest_next_time = period_end_time;
                 }
                 period_start_time = period_end_time;
+            }
+            if (profile.chargingProfileKind == ChargingProfileKindType::Recurring and
+                lowest_next_time.to_time_point() ==
+                    (temp_time.to_time_point() + hours(std::numeric_limits<int>::max()))) {
+                const auto initial_start_time = profile.chargingSchedule.startSchedule.value();
+                ocpp::DateTime next_recurring_start_time;
+                if (profile.recurrencyKind == RecurrencyKindType::Daily) {
+                    next_recurring_start_time = ocpp::DateTime(initial_start_time.to_time_point() + hours(24));
+                } else if (profile.recurrencyKind == RecurrencyKindType::Weekly) {
+                    next_recurring_start_time = ocpp::DateTime(initial_start_time.to_time_point() + hours(24 * 7));
+                } else {
+                    break;
+                }
+                if (next_recurring_start_time < lowest_next_time) {
+                    lowest_next_time = next_recurring_start_time;
+                }
             }
         }
     }
