@@ -203,9 +203,8 @@ protected:
         const fs::path database_path = "na";
         const fs::path init_script_path = "na";
         auto database = std::make_unique<common::DatabaseConnection>(database_path / (chargepoint_id + ".db"));
-        std::shared_ptr<DatabaseHandlerMock> database_handler =
-            std::make_shared<DatabaseHandlerMock>(std::move(database), init_script_path);
-        auto handler = new SmartChargingHandler(connectors, database_handler, true);
+        auto database_handler = std::make_unique<DatabaseHandlerMock>(std::move(database), init_script_path);
+        auto handler = new SmartChargingHandler(connectors, *database_handler, true);
         return handler;
     }
 
@@ -219,10 +218,9 @@ protected:
         const fs::path init_script_path = "na";
 
         auto database = std::make_unique<common::DatabaseConnection>(database_path / (chargepoint_id + ".db"));
-        std::shared_ptr<DatabaseHandlerMock> database_handler =
-            std::make_shared<DatabaseHandlerMock>(std::move(database), init_script_path);
+        auto database_handler = std::make_unique<DatabaseHandlerMock>(std::move(database), init_script_path);
 
-        auto handler = new SmartChargingHandler(connectors, database_handler, true);
+        auto handler = new SmartChargingHandler(connectors, *database_handler, true);
 
         return handler;
     }
@@ -364,7 +362,7 @@ TEST_F(ChargepointTestFixture, ValidateProfile__ValidProfile_ChargingProfileKind
     addConnector(1);
     auto allow_charging_profile_without_start_schedule = false;
     auto handler =
-        new SmartChargingHandler(connectors, database_handler, allow_charging_profile_without_start_schedule);
+        new SmartChargingHandler(connectors, *database_handler, allow_charging_profile_without_start_schedule);
 
     profile.chargingProfileKind = ChargingProfileKindType::Absolute;
     profile.chargingSchedule.startSchedule = std::nullopt;
@@ -459,7 +457,7 @@ TEST_F(ChargepointTestFixture,
     addConnector(1);
     auto allow_charging_profile_without_start_schedule = false;
     auto handler =
-        new SmartChargingHandler(connectors, database_handler, allow_charging_profile_without_start_schedule);
+        new SmartChargingHandler(connectors, *database_handler, allow_charging_profile_without_start_schedule);
 
     profile.chargingProfileKind = ChargingProfileKindType::Recurring;
     profile.chargingSchedule.startSchedule = std::nullopt;
@@ -499,7 +497,7 @@ TEST_F(ChargepointTestFixture, ValidateProfile__RecurringNoStartScheduleNotAllow
     addConnector(1);
     auto allow_charging_profile_without_start_schedule = false;
     auto handler =
-        new SmartChargingHandler(connectors, database_handler, allow_charging_profile_without_start_schedule);
+        new SmartChargingHandler(connectors, *database_handler, allow_charging_profile_without_start_schedule);
 
     profile.chargingProfileKind = ChargingProfileKindType::Recurring;
     profile.chargingSchedule.startSchedule = std::nullopt;

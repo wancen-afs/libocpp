@@ -44,7 +44,7 @@ EvseInterface::~EvseInterface() {
 }
 
 Evse::Evse(const int32_t evse_id, const int32_t number_of_connectors, DeviceModel& device_model,
-           std::shared_ptr<DatabaseHandler> database_handler,
+           DatabaseHandler& database_handler,
            std::shared_ptr<ComponentStateManagerInterface> component_state_manager,
            const std::function<void(const MeterValue& meter_value, const Transaction& transaction, const int32_t seq_no,
                                     const std::optional<int32_t> reservation_id)>& transaction_meter_value_req,
@@ -90,7 +90,7 @@ void Evse::open_transaction(const std::string& transaction_id, const int32_t con
     this->transaction->active_energy_import_start_value = this->get_active_import_register_meter_value();
 
     try {
-        this->database_handler->transaction_metervalues_insert(this->transaction->transactionId.get(), meter_start);
+        this->database_handler.transaction_metervalues_insert(this->transaction->transactionId.get(), meter_start);
     } catch (const QueryExecutionException& e) {
         EVLOG_warning << "Could not insert transaction meter values of transaction: "
                       << this->transaction->transactionId.get() << " into database: " << e.what();
@@ -115,7 +115,7 @@ void Evse::open_transaction(const std::string& transaction_id, const int32_t con
         transaction->sampled_tx_ended_meter_values_timer.interval_starting_from(
             [this] {
                 try {
-                    this->database_handler->transaction_metervalues_insert(this->transaction->transactionId.get(),
+                    this->database_handler.transaction_metervalues_insert(this->transaction->transactionId.get(),
                                                                            this->get_meter_value());
                 } catch (const QueryExecutionException& e) {
                     EVLOG_warning << "Could not insert transaction meter values of transaction: "
@@ -175,7 +175,7 @@ void Evse::open_transaction(const std::string& transaction_id, const int32_t con
                 meter_value.timestamp = utils::align_timestamp(DateTime{}, aligned_data_tx_ended_interval);
             }
             try {
-                this->database_handler->transaction_metervalues_insert(this->transaction->transactionId.get(),
+                this->database_handler.transaction_metervalues_insert(this->transaction->transactionId.get(),
                                                                        meter_value);
             } catch (const QueryExecutionException& e) {
                 EVLOG_warning << "Could not insert transaction meter values of transaction: "
@@ -216,7 +216,7 @@ void Evse::close_transaction(const DateTime& timestamp, const MeterValue& meter_
     this->transaction->aligned_tx_ended_meter_values_timer.stop();
 
     try {
-        this->database_handler->transaction_metervalues_insert(this->transaction->transactionId.get(), meter_stop);
+        this->database_handler.transaction_metervalues_insert(this->transaction->transactionId.get(), meter_stop);
     } catch (const QueryExecutionException& e) {
         EVLOG_warning << "Could not insert transaction meter values of transaction: "
                       << this->transaction->transactionId.get() << " into database: " << e.what();

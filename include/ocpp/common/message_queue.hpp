@@ -95,7 +95,7 @@ template <typename M> struct ControlMessage {
 template <typename M> class MessageQueue {
 private:
     MessageQueueConfig config;
-    std::shared_ptr<ocpp::common::DatabaseHandlerCommon> database_handler;
+    ocpp::common::DatabaseHandlerCommon& database_handler;
 
     std::thread worker_thread;
     /// message deque for transaction related messages
@@ -187,7 +187,7 @@ private:
                                                           message->message_attempts, message->timestamp,
                                                           message->uniqueId()};
             try {
-                this->database_handler->insert_transaction_message(db_message);
+                this->database_handler.insert_transaction_message(db_message);
             } catch (const QueryExecutionException& e) {
                 EVLOG_warning << "Could not insert message into transaction queue: " << e.what();
             }
@@ -249,7 +249,7 @@ private:
                 transaction_message_queue.size() > 1) {
                 EVLOG_debug << "Drop transactional message " << element->initial_unique_id;
                 try {
-                    database_handler->remove_transaction_message(element->initial_unique_id);
+                    database_handler.remove_transaction_message(element->initial_unique_id);
                 } catch (const QueryExecutionException& e) {
                     EVLOG_warning << "Could not delete message from transaction queue: " << e.what();
                 } catch (const std::exception& e) {
@@ -295,8 +295,8 @@ public:
     /// \brief Creates a new MessageQueue object with the provided \p configuration and \p send_callback
     MessageQueue(const std::function<bool(json message)>& send_callback, const MessageQueueConfig& config,
                  const std::vector<M>& external_notify,
-                 std::shared_ptr<common::DatabaseHandlerCommon> database_handler) :
-        database_handler(std::move(database_handler)),
+                 common::DatabaseHandlerCommon& database_handler) :
+        database_handler(database_handler),
         config(config),
         external_notify(external_notify),
         paused(true),
@@ -456,7 +456,7 @@ public:
     }
 
     MessageQueue(const std::function<bool(json message)>& send_callback, const MessageQueueConfig& config,
-                 std::shared_ptr<common::DatabaseHandlerCommon> databaseHandler) :
+                 common::DatabaseHandlerCommon& databaseHandler) :
         MessageQueue(send_callback, config, {}, databaseHandler) {
     }
 
@@ -468,7 +468,7 @@ public:
 
     void get_transaction_messages_from_db(bool ignore_security_event_notifications = false) {
         std::vector<ocpp::common::DBTransactionMessage> transaction_messages =
-            database_handler->get_transaction_messages();
+            database_handler.get_transaction_messages();
 
         if (!transaction_messages.empty()) {
             for (auto& transaction_message : transaction_messages) {
@@ -477,7 +477,7 @@ public:
                     transaction_message.message_type == "SecurityEventNotification") {
                     try {
                         // remove from database in case SecurityEventNotification.req should not be sent
-                        this->database_handler->remove_transaction_message(transaction_message.unique_id);
+                        this->database_handler.remove_transaction_message(transaction_message.unique_id);
                     } catch (const QueryExecutionException& e) {
                         EVLOG_warning << "Could not delete message from transaction queue: " << e.what();
                     } catch (const std::exception& e) {
@@ -675,7 +675,7 @@ public:
                 try {
                     // We only remove the message as soon as a response is received. Otherwise we might miss a message
                     // if the charging station just boots after sending, but before receiving the result.
-                    this->database_handler->remove_transaction_message(this->in_flight->initial_unique_id);
+                    this->database_handler.remove_transaction_message(this->in_flight->initial_unique_id);
                 } catch (const QueryExecutionException& e) {
                     EVLOG_warning << "Could not delete message from transaction queue: " << e.what();
                 } catch (const std::exception& e) {
@@ -749,7 +749,7 @@ public:
                 }
                 try {
                     // also drop the message from the database
-                    this->database_handler->remove_transaction_message(this->in_flight->initial_unique_id);
+                    this->database_handler.remove_transaction_message(this->in_flight->initial_unique_id);
                 } catch (const QueryExecutionException& e) {
                     EVLOG_warning << "Could not delete message from transaction queue: " << e.what();
                 } catch (const std::exception& e) {

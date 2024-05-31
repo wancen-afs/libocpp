@@ -108,7 +108,7 @@ std::map<ChargingProfilePurposeType, LimitStackLevelPair> get_initial_purpose_an
 }
 
 SmartChargingHandler::SmartChargingHandler(std::map<int32_t, std::shared_ptr<Connector>>& connectors,
-                                           std::shared_ptr<DatabaseHandler> database_handler,
+                                           DatabaseHandler& database_handler,
                                            const bool allow_charging_profile_without_start_schedule) :
     connectors(connectors),
     database_handler(database_handler),
@@ -148,7 +148,7 @@ void SmartChargingHandler::clear_expired_profiles() {
         const auto& validTo = it->second.validTo;
         if (validTo.has_value() and validTo.value().to_time_point() < now) {
             this->stack_level_charge_point_max_profiles_map.erase(it++);
-            this->database_handler->delete_charging_profile(it->second.chargingProfileId);
+            database_handler.delete_charging_profile(it->second.chargingProfileId);
         } else {
             ++it;
         }
@@ -398,7 +398,7 @@ void SmartChargingHandler::add_charge_point_max_profile(const ChargingProfile& p
     std::lock_guard<std::mutex> lk(this->charge_point_max_profiles_map_mutex);
     this->stack_level_charge_point_max_profiles_map[profile.stackLevel] = profile;
     try {
-        this->database_handler->insert_or_update_charging_profile(0, profile);
+        this->database_handler.insert_or_update_charging_profile(0, profile);
     } catch (const QueryExecutionException& e) {
         EVLOG_warning << "Could not store ChargePointMaxProfile in the database: " << e.what();
     }
@@ -410,7 +410,7 @@ void SmartChargingHandler::add_tx_default_profile(const ChargingProfile& profile
         for (size_t id = 1; id <= this->connectors.size() - 1; id++) {
             this->connectors.at(id)->stack_level_tx_default_profiles_map[profile.stackLevel] = profile;
             try {
-                this->database_handler->insert_or_update_charging_profile(connector_id, profile);
+                this->database_handler.insert_or_update_charging_profile(connector_id, profile);
             } catch (const QueryExecutionException& e) {
                 EVLOG_warning << "Could not store TxDefaultProfile in the database: " << e.what();
             }
@@ -418,7 +418,7 @@ void SmartChargingHandler::add_tx_default_profile(const ChargingProfile& profile
     } else {
         this->connectors.at(connector_id)->stack_level_tx_default_profiles_map[profile.stackLevel] = profile;
         try {
-            this->database_handler->insert_or_update_charging_profile(connector_id, profile);
+            this->database_handler.insert_or_update_charging_profile(connector_id, profile);
         } catch (const QueryExecutionException& e) {
             EVLOG_warning << "Could not store TxDefaultProfile in the database: " << e.what();
         }
@@ -429,7 +429,7 @@ void SmartChargingHandler::add_tx_profile(const ChargingProfile& profile, const 
     std::lock_guard<std::mutex> lk(this->tx_profiles_map_mutex);
     this->connectors.at(connector_id)->stack_level_tx_profiles_map[profile.stackLevel] = profile;
     try {
-        this->database_handler->insert_or_update_charging_profile(connector_id, profile);
+        this->database_handler.insert_or_update_charging_profile(connector_id, profile);
     } catch (const QueryExecutionException& e) {
         EVLOG_warning << "Could not store TxProfile in the database: " << e.what();
     }
@@ -446,7 +446,7 @@ bool SmartChargingHandler::clear_profiles(std::map<int32_t, ChargingProfile>& st
         if (profile_id_opt && it->second.chargingProfileId == profile_id_opt.value()) {
             EVLOG_info << "Clearing ChargingProfile with id: " << it->second.chargingProfileId;
             try {
-                this->database_handler->delete_charging_profile(it->second.chargingProfileId);
+                this->database_handler.delete_charging_profile(it->second.chargingProfileId);
             } catch (const QueryExecutionException& e) {
                 EVLOG_warning << "Could not delete ChargingProfile from the database: " << e.what();
             }
@@ -458,7 +458,7 @@ bool SmartChargingHandler::clear_profiles(std::map<int32_t, ChargingProfile>& st
                     charging_profile_purpose_opt.value() == it->second.chargingProfilePurpose)) {
             EVLOG_info << "Clearing ChargingProfile with id: " << it->second.chargingProfileId;
             try {
-                this->database_handler->delete_charging_profile(it->second.chargingProfileId);
+                this->database_handler.delete_charging_profile(it->second.chargingProfileId);
             } catch (const QueryExecutionException& e) {
                 EVLOG_warning << "Could not delete ChargingProfile from the database: " << e.what();
             }
@@ -512,7 +512,7 @@ void SmartChargingHandler::clear_all_profiles() {
     }
 
     try {
-        this->database_handler->delete_charging_profiles();
+        this->database_handler.delete_charging_profiles();
     } catch (const QueryExecutionException& e) {
         EVLOG_warning << "Could not delete ChargingProfile from the database: " << e.what();
     }

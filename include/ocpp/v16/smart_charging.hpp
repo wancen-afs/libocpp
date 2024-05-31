@@ -38,7 +38,7 @@ struct PeriodDateTimePair {
 class SmartChargingHandler {
 private:
     std::map<int32_t, std::shared_ptr<Connector>> connectors;
-    std::shared_ptr<ocpp::v16::DatabaseHandler> database_handler;
+    ocpp::v16::DatabaseHandler& database_handler;
     std::map<int, ChargingProfile> stack_level_charge_point_max_profiles_map;
     std::mutex charge_point_max_profiles_map_mutex;
     std::mutex tx_default_profiles_map_mutex;
@@ -77,7 +77,7 @@ private:
 
 public:
     SmartChargingHandler(std::map<int32_t, std::shared_ptr<Connector>>& connectors,
-                         std::shared_ptr<DatabaseHandler> database_handler,
+                         DatabaseHandler& database_handler,
                          const bool allow_charging_profile_without_start_schedule);
 
     ///

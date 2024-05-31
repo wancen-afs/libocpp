@@ -84,12 +84,12 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
     this->device_model->check_integrity(evse_connector_structure);
 
     auto database_connection = std::make_unique<common::DatabaseConnection>(fs::path(core_database_path) / "cp.db");
-    this->database_handler = std::make_shared<DatabaseHandler>(std::move(database_connection), sql_init_path);
+    this->database_handler = std::make_unique<DatabaseHandler>(std::move(database_connection), sql_init_path);
     this->database_handler->open_connection();
 
     // Set up the component state manager
     this->component_state_manager = std::make_shared<ComponentStateManager>(
-        evse_connector_structure, database_handler, [this](auto evse_id, auto connector_id, auto status) {
+        evse_connector_structure, *database_handler, [this](auto evse_id, auto connector_id, auto status) {
             this->update_dm_availability_state(evse_id, connector_id, status);
             if (this->websocket == nullptr || !this->websocket->is_connected() ||
                 this->registration_status != RegistrationStatusEnum::Accepted) {
@@ -156,7 +156,7 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
 
         this->evses.insert(
             std::make_pair(evse_id, std::make_unique<Evse>(evse_id, number_of_connectors, *this->device_model,
-                                                           this->database_handler, component_state_manager,
+                                                           *this->database_handler, component_state_manager,
                                                            transaction_meter_value_callback, pause_charging_callback)));
     }
 
@@ -173,7 +173,7 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
             this->device_model->get_optional_value<bool>(ControllerComponentVariables::QueueAllMessages)
                 .value_or(false),
             this->device_model->get_value<int>(ControllerComponentVariables::MessageTimeout)},
-        this->database_handler);
+        *this->database_handler);
 }
 
 void ChargePoint::start(BootReasonEnum bootreason) {

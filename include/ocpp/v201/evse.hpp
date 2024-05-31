@@ -145,7 +145,7 @@ private:
     MeterValue meter_value;                           // represents current meter value
     std::recursive_mutex meter_value_mutex;
     Everest::SteadyTimer sampled_meter_values_timer;
-    std::shared_ptr<DatabaseHandler> database_handler;
+    DatabaseHandler& database_handler;
 
     /// \brief gets the active import energy meter value from meter_value, normalized to Wh.
     std::optional<float> get_active_import_register_meter_value();
@@ -168,7 +168,7 @@ public:
     /// \param pause_charging_callback that is called when the charging should be paused due to max energy on
     /// invalid id being exceeded
     Evse(const int32_t evse_id, const int32_t number_of_connectors, DeviceModel& device_model,
-         std::shared_ptr<DatabaseHandler> database_handler,
+         DatabaseHandler& database_handler,
          std::shared_ptr<ComponentStateManagerInterface> component_state_manager,
          const std::function<void(const MeterValue& meter_value, const Transaction& transaction, const int32_t seq_no,
                                   const std::optional<int32_t> reservation_id)>& transaction_meter_value_req,

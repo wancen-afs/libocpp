@@ -134,7 +134,7 @@ public:
 /// \brief Stores and monitors operational/effective states of the CS, EVSEs, and connectors
 class ComponentStateManager : public ComponentStateManagerInterface {
 private:
-    std::shared_ptr<DatabaseHandler> database;
+    DatabaseHandler& database;
 
     /// Current individual Operative/Inoperative state of the CS
     OperationalStatusEnum cs_individual_status;
@@ -246,7 +246,7 @@ public:
     /// EVSE has \param db_handler A shared reference to the persistent database \param
     /// send_connector_status_notification_callback The callback through which to send StatusNotifications to the CSMS
     explicit ComponentStateManager(
-        const std::map<int32_t, int32_t>& evse_connector_structure, std::shared_ptr<DatabaseHandler> db_handler,
+        const std::map<int32_t, int32_t>& evse_connector_structure, DatabaseHandler& db_handler,
         std::function<bool(const int32_t evse_id, const int32_t connector_id, const ConnectorStatusEnum new_status)>
             send_connector_status_notification_callback);
 

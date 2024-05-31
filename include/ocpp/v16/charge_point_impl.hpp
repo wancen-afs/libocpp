@@ -106,7 +106,7 @@ private:
     std::mutex allowed_message_types_mutex;
     std::unique_ptr<ChargePointStates> status;
     std::shared_ptr<ChargePointConfiguration> configuration;
-    std::shared_ptr<ocpp::v16::DatabaseHandler> database_handler;
+    std::unique_ptr<ocpp::v16::DatabaseHandler> database_handler;
     std::unique_ptr<Everest::SteadyTimer> boot_notification_timer;
     std::unique_ptr<Everest::SteadyTimer> heartbeat_timer;
     std::unique_ptr<ClockAlignedTimer> clock_aligned_meter_values_timer;

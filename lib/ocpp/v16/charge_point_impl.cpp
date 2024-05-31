@@ -48,7 +48,7 @@ ChargePointImpl::ChargePointImpl(const std::string& config, const fs::path& shar
     this->heartbeat_interval = this->configuration->getHeartbeatInterval();
     auto database_connection =
         std::make_unique<common::DatabaseConnection>(database_path / (this->configuration->getChargePointId() + ".db"));
-    this->database_handler = std::make_shared<DatabaseHandler>(std::move(database_connection), sql_init_path,
+    this->database_handler = std::make_unique<DatabaseHandler>(std::move(database_connection), sql_init_path,
                                                                this->configuration->getNumberOfConnectors());
     this->database_handler->open_connection();
     this->transaction_handler = std::make_unique<TransactionHandler>(this->configuration->getNumberOfConnectors());
@@ -123,7 +123,7 @@ ChargePointImpl::ChargePointImpl(const std::string& config, const fs::path& shar
     }
 
     this->smart_charging_handler = std::make_unique<SmartChargingHandler>(
-        this->connectors, this->database_handler,
+        this->connectors, *this->database_handler,
         this->configuration->getAllowChargingProfileWithoutStartSchedule().value_or(false));
 
     // ISO15118 PnC handlers
@@ -163,7 +163,7 @@ std::unique_ptr<ocpp::MessageQueue<v16::MessageType>> ChargePointImpl::create_me
             this->configuration->getTransactionMessageRetryInterval(),
             this->configuration->getMessageQueueSizeThreshold().value_or(DEFAULT_MESSAGE_QUEUE_SIZE_THRESHOLD),
             this->configuration->getQueueAllMessages().value_or(false)},
-        this->external_notify, this->database_handler);
+        this->external_notify, *this->database_handler);
 }
 
 void ChargePointImpl::init_websocket() {

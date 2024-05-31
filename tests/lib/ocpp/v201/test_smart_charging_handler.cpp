@@ -160,7 +160,7 @@ protected:
             transaction_meter_value_req_mock;
         testing::MockFunction<void()> pause_charging_callback_mock;
         auto e1 = std::make_unique<Evse>(
-            id, 1, device_model, database_handler, std::make_shared<ComponentStateManagerMock>(),
+            id, 1, device_model, *database_handler, std::make_shared<ComponentStateManagerMock>(),
             transaction_meter_value_req_mock.AsStdFunction(), pause_charging_callback_mock.AsStdFunction());
         evses[id] = std::move(e1);
     }
@@ -197,7 +197,9 @@ protected:
 
     // Default values used within the tests
     std::map<int32_t, std::unique_ptr<EvseInterface>> evses;
-    std::shared_ptr<DatabaseHandler> database_handler;
+
+    // FIXME (aw): does this get initialized somewhere?
+    std::unique_ptr<DatabaseHandler> database_handler;
 
     bool ignore_no_transaction = true;
     DeviceModel device_model = create_device_model();

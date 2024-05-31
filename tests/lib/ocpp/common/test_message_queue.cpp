@@ -240,7 +240,7 @@ class MessageQueueTest : public ::testing::Test {
 
 protected:
     MessageQueueConfig config{};
-    std::shared_ptr<DatabaseHandlerBaseMock> db;
+    std::unique_ptr<DatabaseHandlerBaseMock> db;
     std::mutex call_marker_mutex;
     std::condition_variable call_marker_cond_var;
     testing::MockFunction<bool(json message)> send_callback_mock;
@@ -295,14 +295,14 @@ protected:
         if (message_queue) {
             message_queue->stop();
         }
-        message_queue = std::make_unique<MessageQueue<TestMessageType>>(send_callback_mock.AsStdFunction(), config, db);
+        message_queue = std::make_unique<MessageQueue<TestMessageType>>(send_callback_mock.AsStdFunction(), config, *db);
         message_queue->resume(std::chrono::seconds(0));
     }
 
     void SetUp() override {
         call_count = 0;
         config = MessageQueueConfig{1, 1, 2, false};
-        db = std::make_shared<DatabaseHandlerBaseMock>();
+        db = std::make_unique<DatabaseHandlerBaseMock>();
         init_message_queue();
     }
 

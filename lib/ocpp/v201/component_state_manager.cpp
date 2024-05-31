@@ -14,8 +14,8 @@ ComponentStateManagerInterface::~ComponentStateManagerInterface() {
 void ComponentStateManager::read_all_states_from_database_or_set_defaults(
     const std::map<int32_t, int32_t>& evse_connector_structure) {
 
-    this->database->insert_cs_availability(OperationalStatusEnum::Operative, false);
-    this->cs_individual_status = this->database->get_cs_availability();
+    this->database.insert_cs_availability(OperationalStatusEnum::Operative, false);
+    this->cs_individual_status = this->database.get_cs_availability();
 
     int num_evses = evse_connector_structure.size();
     for (int evse_id = 1; evse_id <= num_evses; evse_id++) {
@@ -25,14 +25,14 @@ void ComponentStateManager::read_all_states_from_database_or_set_defaults(
         int num_connectors = evse_connector_structure.at(evse_id);
         std::vector<FullConnectorStatus> connector_statuses;
 
-        this->database->insert_evse_availability(evse_id, OperationalStatusEnum::Operative, false);
-        OperationalStatusEnum evse_operational = this->database->get_evse_availability(evse_id);
+        this->database.insert_evse_availability(evse_id, OperationalStatusEnum::Operative, false);
+        OperationalStatusEnum evse_operational = this->database.get_evse_availability(evse_id);
 
         for (int connector_id = 1; connector_id <= num_connectors; connector_id++) {
-            this->database->insert_connector_availability(evse_id, connector_id, OperationalStatusEnum::Operative,
+            this->database.insert_connector_availability(evse_id, connector_id, OperationalStatusEnum::Operative,
                                                           false);
             OperationalStatusEnum connector_operational =
-                this->database->get_connector_availability(evse_id, connector_id);
+                this->database.get_connector_availability(evse_id, connector_id);
             FullConnectorStatus full_connector_status{connector_operational, false, false, false, false};
             connector_statuses.push_back(full_connector_status);
         }
@@ -64,10 +64,10 @@ void ComponentStateManager::initialize_reported_state_cache() {
 }
 
 ComponentStateManager::ComponentStateManager(
-    const std::map<int32_t, int32_t>& evse_connector_structure, std::shared_ptr<DatabaseHandler> db_handler,
+    const std::map<int32_t, int32_t>& evse_connector_structure, DatabaseHandler& db_handler,
     std::function<bool(const int32_t evse_id, const int32_t connector_id, const ConnectorStatusEnum new_status)>
         send_connector_status_notification_callback) :
-    database(std::move(db_handler)),
+    database(db_handler),
     send_connector_status_notification_callback(std::move(send_connector_status_notification_callback)) {
     this->read_all_states_from_database_or_set_defaults(evse_connector_structure);
     this->initialize_reported_state_cache();
@@ -196,7 +196,7 @@ void ComponentStateManager::set_cs_individual_operational_status(OperationalStat
     this->cs_individual_status = new_status;
     if (persist) {
         try {
-            this->database->insert_cs_availability(new_status, true);
+            this->database.insert_cs_availability(new_status, true);
         } catch (const QueryExecutionException& e) {
             EVLOG_warning << "Could not insert charging station availability of id into database: " << e.what();
         }
@@ -208,11 +208,11 @@ void ComponentStateManager::set_evse_individual_operational_status(int32_t evse_
     this->individual_evse_status(evse_id) = new_status;
     if (persist) {
         try {
-            this->database->insert_evse_availability(evse_id, new_status, true);
+            this->database.insert_evse_availability(evse_id, new_status, true);
         } catch (const QueryExecutionException& e) {
             EVLOG_warning << "Could not insert evse availability of id " << evse_id << " into database: " << e.what();
         }
-        this->database->insert_evse_availability(evse_id, new_status, true);
+        this->database.insert_evse_availability(evse_id, new_status, true);
     }
     this->trigger_callbacks_evse(evse_id, true);
 }
@@ -222,7 +222,7 @@ void ComponentStateManager::set_connector_individual_operational_status(int32_t 
     this->individual_connector_status(evse_id, connector_id).individual_operational_status = new_status;
     if (persist) {
         try {
-            this->database->insert_connector_availability(evse_id, connector_id, new_status, true);
+            this->database.insert_connector_availability(evse_id, connector_id, new_status, true);
         } catch (const QueryExecutionException& e) {
             EVLOG_warning << "Could not insert connector availability of id " << connector_id
                           << " into database: " << e.what();
@@ -272,16 +272,16 @@ OperationalStatusEnum ComponentStateManager::get_connector_effective_operational
 }
 
 OperationalStatusEnum ComponentStateManager::get_cs_persisted_operational_status() {
-    return this->database->get_cs_availability();
+    return this->database.get_cs_availability();
 }
 OperationalStatusEnum ComponentStateManager::get_evse_persisted_operational_status(int32_t evse_id) {
     this->check_evse_id(evse_id);
-    return this->database->get_evse_availability(evse_id);
+    return this->database.get_evse_availability(evse_id);
 }
 OperationalStatusEnum ComponentStateManager::get_connector_persisted_operational_status(int32_t evse_id,
                                                                                         int32_t connector_id) {
     this->check_evse_and_connector_id(evse_id, connector_id);
-    return this->database->get_connector_availability(evse_id, connector_id);
+    return this->database.get_connector_availability(evse_id, connector_id);
 }
 
 void ComponentStateManager::set_connector_occupied(int32_t evse_id, int32_t connector_id, bool is_occupied) {

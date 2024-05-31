@@ -69,7 +69,7 @@ protected:
     void SetUp() override {
     }
 
-    ComponentStateManager component_state_manager(std::shared_ptr<DatabaseHandler> database,
+    ComponentStateManager component_state_manager(DatabaseHandler& database,
                                                   std::vector<uint32_t> connector_structure) {
         std::map<int32_t, int32_t> evse_connector_structure;
         for (int i = 0; i < connector_structure.size(); i++) {
@@ -106,9 +106,9 @@ protected:
 /// \brief Test that the ComponentStateManager can be constructed on an empty database
 TEST_F(ComponentStateManagerTest, test_boot_empty_db) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database_123 = std::make_shared<DatabaseHandlerMock>();
-    std::shared_ptr<DatabaseHandler> mock_database_1 = std::make_shared<DatabaseHandlerMock>();
-    std::shared_ptr<DatabaseHandler> mock_database_1111 = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database_123 = DatabaseHandlerMock();
+    auto mock_database_1 = DatabaseHandlerMock();
+    auto mock_database_1111 = DatabaseHandlerMock();
 
     // Act & Verify: No crash
     auto state_mgr_123 = this->component_state_manager(mock_database_123, {1, 2, 3});
@@ -119,13 +119,13 @@ TEST_F(ComponentStateManagerTest, test_boot_empty_db) {
 /// \brief Test that the ComponentStateManager correctly recovers persisted states on boot
 TEST_F(ComponentStateManagerTest, test_boot_recover_persisted_states) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
-    mock_database->insert_cs_availability(OperationalStatusEnum::Operative, false);
-    mock_database->insert_evse_availability(1, OperationalStatusEnum::Inoperative, false);
-    mock_database->insert_evse_availability(2, OperationalStatusEnum::Operative, false);
-    mock_database->insert_connector_availability(1, 1, OperationalStatusEnum::Operative, false);
-    mock_database->insert_connector_availability(2, 1, OperationalStatusEnum::Operative, false);
-    mock_database->insert_connector_availability(2, 2, OperationalStatusEnum::Inoperative, false);
+    auto mock_database = DatabaseHandlerMock();
+    mock_database.insert_cs_availability(OperationalStatusEnum::Operative, false);
+    mock_database.insert_evse_availability(1, OperationalStatusEnum::Inoperative, false);
+    mock_database.insert_evse_availability(2, OperationalStatusEnum::Operative, false);
+    mock_database.insert_connector_availability(1, 1, OperationalStatusEnum::Operative, false);
+    mock_database.insert_connector_availability(2, 1, OperationalStatusEnum::Operative, false);
+    mock_database.insert_connector_availability(2, 2, OperationalStatusEnum::Inoperative, false);
 
     // Act
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
@@ -142,7 +142,7 @@ TEST_F(ComponentStateManagerTest, test_boot_recover_persisted_states) {
 /// \brief Test that the ComponentStateManager sanity-checks input EVSE and connector IDs
 TEST_F(ComponentStateManagerTest, test_check_evse_and_connector_ids) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Act & Verify
@@ -163,19 +163,19 @@ TEST_F(ComponentStateManagerTest, test_check_evse_and_connector_ids) {
 /// \brief Test that the ComponentStateManager assumes missing states are Operative
 TEST_F(ComponentStateManagerTest, test_boot_missing_states_are_operative) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
-    mock_database->insert_evse_availability(1, OperationalStatusEnum::Inoperative, false);
-    mock_database->insert_connector_availability(2, 2, OperationalStatusEnum::Inoperative, false);
+    auto mock_database = DatabaseHandlerMock();
+    mock_database.insert_evse_availability(1, OperationalStatusEnum::Inoperative, false);
+    mock_database.insert_connector_availability(2, 2, OperationalStatusEnum::Inoperative, false);
 
     // Act
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Verify
     // The missing states should be filled into the DB
-    ASSERT_EQ(mock_database->get_cs_availability(), OperationalStatusEnum::Operative);
-    ASSERT_EQ(mock_database->get_evse_availability(2), OperationalStatusEnum::Operative);
-    ASSERT_EQ(mock_database->get_connector_availability(1, 1), OperationalStatusEnum::Operative);
-    ASSERT_EQ(mock_database->get_connector_availability(2, 1), OperationalStatusEnum::Operative);
+    ASSERT_EQ(mock_database.get_cs_availability(), OperationalStatusEnum::Operative);
+    ASSERT_EQ(mock_database.get_evse_availability(2), OperationalStatusEnum::Operative);
+    ASSERT_EQ(mock_database.get_connector_availability(1, 1), OperationalStatusEnum::Operative);
+    ASSERT_EQ(mock_database.get_connector_availability(2, 1), OperationalStatusEnum::Operative);
     // Individual state getters
     ASSERT_EQ(state_mgr.get_cs_individual_operational_status(), OperationalStatusEnum::Operative);
     ASSERT_EQ(state_mgr.get_evse_individual_operational_status(1), OperationalStatusEnum::Inoperative);
@@ -188,7 +188,7 @@ TEST_F(ComponentStateManagerTest, test_boot_missing_states_are_operative) {
 /// \brief Test that the ComponentStateManager persists changes in operative state
 TEST_F(ComponentStateManagerTest, test_persist_operative_states) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Act
@@ -201,12 +201,12 @@ TEST_F(ComponentStateManagerTest, test_persist_operative_states) {
     state_mgr.set_connector_individual_operational_status(1, 1, OperationalStatusEnum::Inoperative, false);
 
     // Verify
-    ASSERT_EQ(mock_database->get_cs_availability(), OperationalStatusEnum::Inoperative);
-    ASSERT_EQ(mock_database->get_evse_availability(1), OperationalStatusEnum::Inoperative);
-    ASSERT_EQ(mock_database->get_evse_availability(2), OperationalStatusEnum::Operative);
-    ASSERT_EQ(mock_database->get_connector_availability(1, 1), OperationalStatusEnum::Operative);
-    ASSERT_EQ(mock_database->get_connector_availability(2, 1), OperationalStatusEnum::Inoperative);
-    ASSERT_EQ(mock_database->get_connector_availability(2, 2), OperationalStatusEnum::Operative);
+    ASSERT_EQ(mock_database.get_cs_availability(), OperationalStatusEnum::Inoperative);
+    ASSERT_EQ(mock_database.get_evse_availability(1), OperationalStatusEnum::Inoperative);
+    ASSERT_EQ(mock_database.get_evse_availability(2), OperationalStatusEnum::Operative);
+    ASSERT_EQ(mock_database.get_connector_availability(1, 1), OperationalStatusEnum::Operative);
+    ASSERT_EQ(mock_database.get_connector_availability(2, 1), OperationalStatusEnum::Inoperative);
+    ASSERT_EQ(mock_database.get_connector_availability(2, 2), OperationalStatusEnum::Operative);
     // Also check the persisted state getters - they should return the same value
     ASSERT_EQ(state_mgr.get_cs_persisted_operational_status(), OperationalStatusEnum::Inoperative);
     ASSERT_EQ(state_mgr.get_evse_persisted_operational_status(1), OperationalStatusEnum::Inoperative);
@@ -219,7 +219,7 @@ TEST_F(ComponentStateManagerTest, test_persist_operative_states) {
 /// \brief Test the ComponentStateManager's effective state getters when the CS is inoperative
 TEST_F(ComponentStateManagerTest, test_effective_state_getters_cs_inoperative) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Act
@@ -243,7 +243,7 @@ TEST_F(ComponentStateManagerTest, test_effective_state_getters_cs_inoperative) {
 /// \brief Test the ComponentStateManager's effective state getters when an EVSE is inoperative
 TEST_F(ComponentStateManagerTest, test_effective_state_getters_evse_inoperative) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Act
@@ -268,7 +268,7 @@ TEST_F(ComponentStateManagerTest, test_effective_state_getters_evse_inoperative)
 /// \brief Test the ComponentStateManager's state transitions for a connector
 TEST_F(ComponentStateManagerTest, test_connector_state_machine) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     auto state_mgr = this->component_state_manager(mock_database, {1});
 
     // Act & Verify multiple times
@@ -311,7 +311,7 @@ TEST_F(ComponentStateManagerTest, test_connector_state_machine) {
 /// \brief Test the ComponentStateManager calls "effective state changed" callbacks correctly at run-time
 TEST_F(ComponentStateManagerTest, test_effective_state_changed_callbacks) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Set up mock expectations
@@ -364,9 +364,9 @@ TEST_F(ComponentStateManagerTest, test_effective_state_changed_callbacks) {
 /// \brief Test the ComponentStateManager::trigger_all_effective_availability_changed_callbacks()
 TEST_F(ComponentStateManagerTest, test_trigger_boot_callbacks) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     // EVSE 1 disabled on boot
-    mock_database->insert_evse_availability(1, OperationalStatusEnum::Inoperative, true);
+    mock_database.insert_evse_availability(1, OperationalStatusEnum::Inoperative, true);
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Set up mock expectations
@@ -400,7 +400,7 @@ TEST_F(ComponentStateManagerTest, test_trigger_boot_callbacks) {
 /// \brief Test the ComponentStateManager::send_status_notification_changed_connectors()
 TEST_F(ComponentStateManagerTest, test_send_status_notification_changed_connectors) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Set up mock expectations
@@ -432,7 +432,7 @@ TEST_F(ComponentStateManagerTest, test_send_status_notification_changed_connecto
 /// \brief Test the ComponentStateManager::send_status_notification_single_connector()
 TEST_F(ComponentStateManagerTest, test_send_status_notification_single_connector) {
     // Prepare
-    std::shared_ptr<DatabaseHandler> mock_database = std::make_shared<DatabaseHandlerMock>();
+    auto mock_database = DatabaseHandlerMock();
     auto state_mgr = this->component_state_manager(mock_database, {1, 2});
 
     // Set up mock expectations
