@@ -203,7 +203,7 @@ protected:
         const fs::path database_path = "na";
         const fs::path init_script_path = "na";
         auto database = std::make_unique<common::DatabaseConnection>(database_path / (chargepoint_id + ".db"));
-        auto database_handler = std::make_unique<DatabaseHandlerMock>(std::move(database), init_script_path);
+        database_handler = std::make_unique<DatabaseHandlerMock>(std::move(database), init_script_path);
         auto handler = new SmartChargingHandler(connectors, *database_handler, true);
         return handler;
     }
@@ -218,7 +218,7 @@ protected:
         const fs::path init_script_path = "na";
 
         auto database = std::make_unique<common::DatabaseConnection>(database_path / (chargepoint_id + ".db"));
-        auto database_handler = std::make_unique<DatabaseHandlerMock>(std::move(database), init_script_path);
+        database_handler = std::make_unique<DatabaseHandlerMock>(std::move(database), init_script_path);
 
         auto handler = new SmartChargingHandler(connectors, *database_handler, true);
 
@@ -239,7 +239,7 @@ protected:
 
     // Default values used within the tests
     std::map<int32_t, std::shared_ptr<Connector>> connectors;
-    std::shared_ptr<DatabaseHandler> database_handler;
+    std::unique_ptr<DatabaseHandler> database_handler;
 
     const int connector_id = 1;
     bool ignore_no_transaction = true;
