@@ -7,6 +7,9 @@ using namespace std::chrono;
 
 using QueryExecutionException = ocpp::common::QueryExecutionException;
 
+const auto DEFAULT_LIMIT = 0;
+const auto DEFAULT_STACK_LEVEL = 0;
+
 namespace ocpp {
 namespace v16 {
 
@@ -99,7 +102,16 @@ ocpp::DateTime get_period_end_time(const int period_index, const ocpp::DateTime&
             }
         }
     }
-    return ocpp::DateTime(period_start_time.to_time_point() + seconds(period_diff_in_seconds));
+
+    auto period_end_time = ocpp::DateTime(period_start_time.to_time_point() + seconds(period_diff_in_seconds));
+
+    // period end time must not be later than validTo
+    if (!profile.validTo.has_value() or
+        (profile.validTo.has_value() and period_end_time.to_time_point() < profile.validTo.value().to_time_point())) {
+        return ocpp::DateTime(period_start_time.to_time_point() + seconds(period_diff_in_seconds));
+    } else {
+        return profile.validTo.value();
+    }
 }
 
 std::map<ChargingProfilePurposeType, LimitStackLevelPair> get_initial_purpose_and_stack_limits() {
@@ -126,19 +138,15 @@ PeriodDateTimePair SmartChargingHandler::find_period_at(const ocpp::DateTime& ti
     auto period_start_time = this->get_profile_start_time(profile, time, connector_id);
     const auto schedule = profile.chargingSchedule;
 
-    if (period_start_time.value().to_time_point() > time.to_time_point()) {
+    if (!period_start_time.has_value() or period_start_time.value().to_time_point() > time.to_time_point()) {
         return {std::nullopt, ocpp::DateTime(time.to_time_point() + hours(std::numeric_limits<int>::max()))};
     }
-
-    EVLOG_critical << "find_period_at_period_start_time: " << period_start_time.value().to_rfc3339()
-                   << " profile id : " << profile.chargingProfileId;
 
     if (period_start_time) {
         const auto periods = schedule.chargingSchedulePeriod;
         time_point<date::utc_clock> period_end_time;
         for (size_t i = 0; i < periods.size(); i++) {
             const auto period_end_time = get_period_end_time(i, period_start_time.value(), profile, periods);
-            EVLOG_critical << "find_period_at_period_end_time: " << period_end_time.to_rfc3339();
             if (time >= period_start_time.value() && time < period_end_time) {
                 return {periods.at(i), ocpp::DateTime(period_end_time)};
             }
@@ -229,7 +237,6 @@ EnhancedChargingSchedule SmartChargingHandler::calculate_enhanced_composite_sche
         auto current_purpose_and_stack_limits =
             get_initial_purpose_and_stack_limits(); // this data structure holds the current lowest limit and stack
                                                     // level for every purpose
-        EVLOG_critical << "temp_time: " << temp_time.to_rfc3339();
         ocpp::DateTime temp_period_end_time;
         int temp_number_phases;
         for (const auto& profile : valid_profiles) {
@@ -282,37 +289,43 @@ EnhancedChargingSchedule SmartChargingHandler::calculate_enhanced_composite_sche
         }
 
         // insert new period to result only if limit changed or period was found
-        if (significant_limit_stack_level_pair.limit != current_period_limit and
-            significant_limit_stack_level_pair.limit != std::numeric_limits<int>::max()) {
-
+        if (significant_limit_stack_level_pair.limit != current_period_limit or
+            current_period_limit == std::numeric_limits<int>::max()) {
             EnhancedChargingSchedulePeriod new_period;
             const auto start_period =
                 duration_cast<seconds>(temp_time.to_time_point() - start_time.to_time_point()).count();
             new_period.startPeriod = start_period;
-            new_period.limit = get_requested_limit(significant_limit_stack_level_pair.limit, temp_number_phases,
-                                                   charging_rate_unit.value());
-            new_period.numberPhases = temp_number_phases;
-            new_period.stackLevel = significant_limit_stack_level_pair.stack_level;
+            if (significant_limit_stack_level_pair.limit != std::numeric_limits<int>::max()) {
+                new_period.limit = get_requested_limit(significant_limit_stack_level_pair.limit, temp_number_phases,
+                                                       charging_rate_unit.value());
+                new_period.numberPhases = temp_number_phases;
+                new_period.stackLevel = significant_limit_stack_level_pair.stack_level;
+            } else {
+                // no period found for this time; using defaults
+                new_period.limit = DEFAULT_LIMIT;
+                new_period.stackLevel = DEFAULT_STACK_LEVEL;
+            }
 
             if (periods.size() == 0) {
                 composite_schedule.startSchedule = temp_time;
                 new_period.startPeriod = 0;
             }
 
+            if (periods.size() == 1 and new_period.startPeriod == 0) {
+                periods.clear();
+            }
             periods.push_back(new_period);
 
             last_period_end_time = temp_period_end_time;
             current_period_limit = significant_limit_stack_level_pair.limit;
         }
         temp_time = this->get_next_temp_time(temp_time, valid_profiles, connector_id);
-        EVLOG_critical << "new_temp_time: " << temp_time.to_rfc3339();
     }
 
-    // update duration if end time of last period is smaller than requested end time
-    if (last_period_end_time.to_time_point() - start_time.to_time_point() <
-        (end_time.to_time_point() - start_time.to_time_point())) {
-        composite_schedule.duration =
-            duration_cast<seconds>(last_period_end_time.to_time_point() - start_time.to_time_point()).count();
+    // use default if no periods of profiles applied
+    if (periods.size() == 0) {
+        // use default
+        periods.push_back({0, DEFAULT_LIMIT, std::nullopt, DEFAULT_STACK_LEVEL});
     }
     composite_schedule.chargingSchedulePeriod = periods;
 
@@ -594,7 +607,7 @@ std::optional<ocpp::DateTime> SmartChargingHandler::get_profile_start_time(const
                 this->connectors.at(connector_id)->transaction->get_start_energy_wh()->timestamp.to_time_point())));
         }
     } else if (profile.chargingProfileKind == ChargingProfileKindType::Recurring) {
-        if (time.to_time_point() < profile.validFrom.value().to_time_point()) {
+        if (profile.validFrom.has_value() and time.to_time_point() < profile.validFrom.value().to_time_point()) {
             return ocpp::DateTime(profile.validFrom.value().to_time_point());
         }
         const auto start_schedule = ocpp::DateTime(floor<seconds>(schedule.startSchedule.value().to_time_point()));
@@ -621,7 +634,8 @@ ocpp::DateTime SmartChargingHandler::get_next_temp_time(const ocpp::DateTime tem
         const auto periods = schedule.chargingSchedulePeriod;
         const auto period_start_time_opt = this->get_profile_start_time(profile, temp_time, connector_id);
         if (period_start_time_opt) {
-            if (period_start_time_opt.value().to_time_point() > temp_time.to_time_point()) {
+            if (period_start_time_opt.value().to_time_point() > temp_time.to_time_point() and
+                period_start_time_opt.value() < lowest_next_time) {
                 lowest_next_time = period_start_time_opt.value();
             }
             auto period_start_time = period_start_time_opt.value();
@@ -644,7 +658,9 @@ ocpp::DateTime SmartChargingHandler::get_next_temp_time(const ocpp::DateTime tem
                 } else {
                     break;
                 }
-                if (next_recurring_start_time < lowest_next_time) {
+
+                // make sure lowest_next_time is later than temp_time
+                if (next_recurring_start_time < lowest_next_time and next_recurring_start_time > temp_time) {
                     lowest_next_time = next_recurring_start_time;
                 }
             }
