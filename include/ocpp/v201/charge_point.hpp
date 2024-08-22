@@ -194,7 +194,9 @@ struct Callbacks {
         transaction_event_response_callback;
 
     /// \brief Callback function is called when the websocket connection status changes
-    std::optional<std::function<void(const bool is_connected)>> connection_state_changed_callback;
+    std::optional<std::function<void(const bool is_connected, const int configuration_slot,
+                                     const NetworkConnectionProfile& network_connection_profile)>>
+        connection_state_changed_callback;
 };
 
 /// \brief Combines ChangeAvailabilityRequest with persist flag for scheduled Availability changes
@@ -508,9 +510,11 @@ private:
     void init_certificate_expiration_check_timers();
     void scheduled_check_client_certificate_expiration();
     void scheduled_check_v2g_certificate_expiration();
-    void websocket_connected_callback(const int security_profile);
-    void websocket_disconnected_callback();
-    void websocket_connection_failed(ConnectionFailedReason reason);
+    void on_websocket_connected(const int configuration_slot,
+                                const NetworkConnectionProfile& network_connection_profile);
+    void on_websocket_disconnected(const int configuration_slot,
+                                   const NetworkConnectionProfile& network_connection_profile);
+    void on_websocket_connection_failed(ConnectionFailedReason reason);
     void update_dm_availability_state(const int32_t evse_id, const int32_t connector_id,
                                       const ConnectorStatusEnum status);
     void update_dm_evse_power(const int32_t evse_id, const MeterValue& meter_value);

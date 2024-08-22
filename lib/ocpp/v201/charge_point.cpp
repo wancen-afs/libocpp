@@ -163,11 +163,11 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
                                               std::bind(&ChargePoint::message_callback, this, std::placeholders::_1));
 
     this->connectivity_manager->set_websocket_connected_callback(
-        std::bind(&ChargePoint::websocket_connected_callback, this, std::placeholders::_1));
+        std::bind(&ChargePoint::on_websocket_connected, this, std::placeholders::_1, std::placeholders::_2));
     this->connectivity_manager->set_websocket_disconnected_callback(
-        std::bind(&ChargePoint::websocket_disconnected_callback, this));
+        std::bind(&ChargePoint::on_websocket_disconnected, this, std::placeholders::_1, std::placeholders::_2));
     this->connectivity_manager->set_websocket_connection_failed_callback(
-        std::bind(&ChargePoint::websocket_connection_failed, this, std::placeholders::_1));
+        std::bind(&ChargePoint::on_websocket_connection_failed, this, std::placeholders::_1));
 
     if (this->callbacks.configure_network_connection_profile_callback.has_value()) {
         this->connectivity_manager->set_configure_network_connection_profile_callback(
@@ -3717,14 +3717,15 @@ void ChargePoint::scheduled_check_v2g_certificate_expiration() {
             .value_or(12 * 60 * 60)));
 }
 
-void ChargePoint::websocket_connected_callback(const int security_profile) {
+void ChargePoint::on_websocket_connected(const int configuration_slot,
+                                         const NetworkConnectionProfile& network_connection_profile) {
     this->message_queue->resume(this->message_queue_resume_delay);
 
     const auto& security_profile_cv = ControllerComponentVariables::SecurityProfile;
     if (security_profile_cv.variable.has_value()) {
-        this->device_model->set_read_only_value(security_profile_cv.component, security_profile_cv.variable.value(),
-                                                AttributeEnum::Actual, std::to_string(security_profile),
-                                                VARIABLE_ATTRIBUTE_VALUE_SOURCE_INTERNAL);
+        this->device_model->set_read_only_value(
+            security_profile_cv.component, security_profile_cv.variable.value(), AttributeEnum::Actual,
+            std::to_string(network_connection_profile.securityProfile), VARIABLE_ATTRIBUTE_VALUE_SOURCE_INTERNAL);
     }
 
     if (this->registration_status == RegistrationStatusEnum::Accepted and
@@ -3754,11 +3755,12 @@ void ChargePoint::websocket_connected_callback(const int security_profile) {
     this->skip_invalid_csms_certificate_notifications = false;
 
     if (this->callbacks.connection_state_changed_callback.has_value()) {
-        this->callbacks.connection_state_changed_callback.value()(true);
+        this->callbacks.connection_state_changed_callback.value()(true, configuration_slot, network_connection_profile);
     }
 }
 
-void ChargePoint::websocket_disconnected_callback() {
+void ChargePoint::on_websocket_disconnected(const int configuration_slot,
+                                            const NetworkConnectionProfile& network_connection_profile) {
     this->message_queue->pause();
 
     // check if offline threshold has been defined
@@ -3770,11 +3772,12 @@ void ChargePoint::websocket_disconnected_callback() {
     this->client_certificate_expiration_check_timer.stop();
     this->v2g_certificate_expiration_check_timer.stop();
     if (this->callbacks.connection_state_changed_callback.has_value()) {
-        this->callbacks.connection_state_changed_callback.value()(false);
+        this->callbacks.connection_state_changed_callback.value()(false, configuration_slot,
+                                                                  network_connection_profile);
     }
 }
 
-void ChargePoint::websocket_connection_failed(ConnectionFailedReason reason) {
+void ChargePoint::on_websocket_connection_failed(ConnectionFailedReason reason) {
     switch (reason) {
     case ConnectionFailedReason::InvalidCSMSCertificate:
         if (!this->skip_invalid_csms_certificate_notifications) {

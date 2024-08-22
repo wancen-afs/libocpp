@@ -50,11 +50,11 @@ void ConnectivityManager::set_websocket_connection_options_without_reconnect() {
     this->set_websocket_connection_options(connection_options);
 }
 
-void ConnectivityManager::set_websocket_connected_callback(WebsocketConnectedCallback callback) {
+void ConnectivityManager::set_websocket_connected_callback(WebsocketConnectionCallback callback) {
     this->websocket_connected_callback = callback;
 }
 
-void ConnectivityManager::set_websocket_disconnected_callback(WebsocketDisconnectedCallback callback) {
+void ConnectivityManager::set_websocket_disconnected_callback(WebsocketConnectionCallback callback) {
     this->websocket_disconnected_callback = callback;
 }
 
@@ -178,13 +178,9 @@ void ConnectivityManager::init_websocket() {
 
     this->websocket = std::make_unique<Websocket>(connection_options, this->evse_security, this->logging);
 
-    if (this->websocket_connected_callback.has_value()) {
-        this->websocket->register_connected_callback(websocket_connected_callback.value());
-    }
-
-    if (this->websocket_disconnected_callback.has_value()) {
-        this->websocket->register_disconnected_callback(websocket_disconnected_callback.value());
-    }
+    this->websocket->register_connected_callback(
+        std::bind(&ConnectivityManager::on_websocket_connected, this, std::placeholders::_1));
+    this->websocket->register_disconnected_callback(std::bind(&ConnectivityManager::on_websocket_disconnected, this));
 
     this->websocket->register_closed_callback(
         [this, connection_options, configuration_slot](const WebsocketCloseReason reason) {
@@ -263,6 +259,32 @@ void ConnectivityManager::next_network_configuration_priority() {
     }
     this->network_configuration_priority =
         (this->network_configuration_priority + 1) % (network_connection_priorities.size());
+}
+
+void ConnectivityManager::on_websocket_connected([[maybe_unused]] int security_profile) {
+    int actual_configuration_slot =
+        std::stoi(ocpp::get_vector_from_csv(this->device_model.get_value<std::string>(
+                                                ControllerComponentVariables::NetworkConfigurationPriority))
+                      .at(this->network_configuration_priority));
+    std::optional<NetworkConnectionProfile> network_connection_profile =
+        this->get_network_connection_profile(actual_configuration_slot);
+
+    if (this->websocket_connected_callback.has_value() and network_connection_profile.has_value()) {
+        this->websocket_connected_callback.value()(actual_configuration_slot, network_connection_profile.value());
+    }
+}
+
+void ConnectivityManager::on_websocket_disconnected() {
+    int actual_configuration_slot =
+        std::stoi(ocpp::get_vector_from_csv(this->device_model.get_value<std::string>(
+                                                ControllerComponentVariables::NetworkConfigurationPriority))
+                      .at(this->network_configuration_priority));
+    std::optional<NetworkConnectionProfile> network_connection_profile =
+        this->get_network_connection_profile(actual_configuration_slot);
+
+    if (this->websocket_disconnected_callback.has_value() and network_connection_profile.has_value()) {
+        this->websocket_disconnected_callback.value()(actual_configuration_slot, network_connection_profile.value());
+    }
 }
 
 } // namespace v201

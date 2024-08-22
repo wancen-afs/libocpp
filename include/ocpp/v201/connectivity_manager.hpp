@@ -14,8 +14,8 @@ namespace v201 {
 
 class DeviceModel;
 
-using WebsocketConnectedCallback = std::function<void(const int security_profile)>;
-using WebsocketDisconnectedCallback = std::function<void()>;
+using WebsocketConnectionCallback =
+    std::function<void(const int configuration_slot, const NetworkConnectionProfile& network_connection_profile)>;
 using WebsocketConnectionFailedCallback = std::function<void(ConnectionFailedReason reason)>;
 using ConfigureNetworkConnectionProfileCallback =
     std::function<bool(const NetworkConnectionProfile& network_connection_profile)>;
@@ -33,9 +33,9 @@ private:
     /// \brief The message callback
     std::function<void(const std::string& message)> message_callback;
     /// \brief Callback that is called when the websocket is connected successfully
-    std::optional<WebsocketConnectedCallback> websocket_connected_callback;
+    std::optional<WebsocketConnectionCallback> websocket_connected_callback;
     /// \brief Callback that is called when the websocket connection is disconnected
-    std::optional<WebsocketDisconnectedCallback> websocket_disconnected_callback;
+    std::optional<WebsocketConnectionCallback> websocket_disconnected_callback;
     /// \brief Callback that is called when the websocket could not connect with a specific reason
     std::optional<WebsocketConnectionFailedCallback> websocket_connection_failed_callback;
     /// \brief Callback that is called to configure a network connection profile when none is configured
@@ -65,11 +65,11 @@ public:
 
     /// \brief Set the \p callback that is called when the websocket is connected.
     ///
-    void set_websocket_connected_callback(WebsocketConnectedCallback callback);
+    void set_websocket_connected_callback(WebsocketConnectionCallback callback);
 
     /// \brief Set the \p callback that is called when the websocket is disconnected.
     ///
-    void set_websocket_disconnected_callback(WebsocketDisconnectedCallback callback);
+    void set_websocket_disconnected_callback(WebsocketConnectionCallback callback);
 
     /// \brief Set the \p callback that is called when the websocket could not connect with a specific reason
     ///
@@ -123,6 +123,14 @@ private:
     /// \brief Moves websocket network_configuration_priority to next profile
     ///
     void next_network_configuration_priority();
+
+    /// \brief Function invoked when the web socket connected with the \p security_profile
+    ///
+    void on_websocket_connected(const int security_profile);
+
+    /// \brief Function invoked when the web socket disconnected
+    ///
+    void on_websocket_disconnected();
 };
 
 } // namespace v201
