@@ -95,6 +95,7 @@ bool ConnectivityManager::is_websocket_connected() {
 void ConnectivityManager::start() {
     init_websocket();
     if (websocket != nullptr) {
+        this->disable_automatic_websocket_reconnects = false;
         websocket->connect();
     }
 }
@@ -125,6 +126,34 @@ bool ConnectivityManager::send_to_websocket(const std::string& message) {
     }
 
     return this->websocket->send(message);
+}
+
+void ConnectivityManager::on_network_disconnected(const std::optional<int32_t> configuration_slot,
+                                                  const std::optional<OCPPInterfaceEnum> ocpp_interface) {
+
+    if (!configuration_slot.has_value() and !ocpp_interface.has_value()) {
+        EVLOG_warning << "Network disconnected. Not clear which network is disconnected: configuration slot and ocpp "
+                         "interface are empty";
+        return;
+    }
+
+    // TODO this code is now duplicated thrice, see if it can be reused
+    int actual_configuration_slot =
+        std::stoi(ocpp::get_vector_from_csv(this->device_model.get_value<std::string>(
+                                                ControllerComponentVariables::NetworkConfigurationPriority))
+                      .at(this->network_configuration_priority));
+    std::optional<NetworkConnectionProfile> network_connection_profile =
+        this->get_network_connection_profile(actual_configuration_slot);
+
+    if (!network_connection_profile.has_value()) {
+        EVLOG_warning << "Network disconnected. No network connection profile configured";
+    } else if ((configuration_slot.has_value() and (configuration_slot.value() == actual_configuration_slot)) or
+               (ocpp_interface.has_value() and
+                (ocpp_interface.value() == network_connection_profile.value().ocppInterface))) {
+        this->disconnect_websocket(ocpp::WebsocketCloseReason::GoingAway);
+        // Since there is no connection anymore: reconnect with the next available network connection profile.
+        reconnect(ocpp::WebsocketCloseReason::GoingAway);
+    }
 }
 
 void ConnectivityManager::init_websocket() {
@@ -189,14 +218,7 @@ void ConnectivityManager::init_websocket() {
                           << configuration_slot;
 
             if (!this->disable_automatic_websocket_reconnects) {
-                this->websocket_timer.timeout(
-                    [this, reason]() {
-                        if (reason != WebsocketCloseReason::ServiceRestart) {
-                            this->next_network_configuration_priority();
-                        }
-                        this->start();
-                    },
-                    WEBSOCKET_INIT_DELAY);
+                reconnect(reason);
             }
         });
 
@@ -285,6 +307,17 @@ void ConnectivityManager::on_websocket_disconnected() {
     if (this->websocket_disconnected_callback.has_value() and network_connection_profile.has_value()) {
         this->websocket_disconnected_callback.value()(actual_configuration_slot, network_connection_profile.value());
     }
+}
+
+void ConnectivityManager::reconnect(WebsocketCloseReason reason) {
+    this->websocket_timer.timeout(
+        [this, reason]() {
+            if (reason != WebsocketCloseReason::ServiceRestart) {
+                this->next_network_configuration_priority();
+            }
+            this->start();
+        },
+        WEBSOCKET_INIT_DELAY);
 }
 
 } // namespace v201

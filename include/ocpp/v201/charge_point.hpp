@@ -223,6 +223,20 @@ public:
     /// \brief Disconnects the the websocket connection to the CSMS if it is connected
     virtual void disconnect_websocket() = 0;
 
+    ///
+    /// \brief Can be called when a network is disconnected, for example when an ethernet cable is removed.
+    ///
+    /// This is introduced because the websocket can take several minutes to timeout when a network interface becomes
+    /// unavailable, whereas the system can detect this sooner.
+    ///
+    /// \param configuration_slot   The slot of the network connection profile that is disconnected.
+    /// \param ocpp_interface       The interface that is disconnected.
+    ///
+    /// \note At least one of the two params must be provided, otherwise libocpp will not know which interface is down.
+    ///
+    virtual void on_network_disconnected(const std::optional<int32_t> configuration_slot,
+                                 const std::optional<OCPPInterfaceEnum> ocpp_interface) = 0;
+
     /// \brief Chargepoint notifies about new firmware update status firmware_update_status. This function should be
     ///        called during a Firmware Update to indicate the current firmware_update_status.
     /// \param request_id   The request_id. When it is -1, it will not be included in the request.
@@ -877,6 +891,9 @@ public:
 
     virtual void connect_websocket() override;
     virtual void disconnect_websocket() override;
+
+    void on_network_disconnected(const std::optional<int32_t> configuration_slot,
+                                 const std::optional<OCPPInterfaceEnum> ocpp_interface) override;
 
     void on_firmware_update_status_notification(int32_t request_id,
                                                 const FirmwareStatusEnum& firmware_update_status) override;

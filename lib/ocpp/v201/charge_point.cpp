@@ -253,6 +253,11 @@ void ChargePoint::disconnect_websocket() {
     this->connectivity_manager->disconnect_websocket();
 }
 
+void ChargePoint::on_network_disconnected(const std::optional<int32_t> configuration_slot,
+                                          const std::optional<OCPPInterfaceEnum> ocpp_interface) {
+    this->connectivity_manager->on_network_disconnected(configuration_slot, ocpp_interface);
+}
+
 void ChargePoint::on_firmware_update_status_notification(int32_t request_id,
                                                          const FirmwareStatusEnum& firmware_update_status) {
     if (this->firmware_status == firmware_update_status) {
