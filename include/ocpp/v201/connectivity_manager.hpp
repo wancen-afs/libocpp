@@ -4,6 +4,7 @@
 #pragma once
 
 #include <ocpp/common/websocket/websocket.hpp>
+#include <ocpp/v201/ocpp_types.hpp>
 
 #include <functional>
 #include <future>
@@ -17,8 +18,8 @@ class DeviceModel;
 using WebsocketConnectionCallback =
     std::function<void(const int configuration_slot, const NetworkConnectionProfile& network_connection_profile)>;
 using WebsocketConnectionFailedCallback = std::function<void(ConnectionFailedReason reason)>;
-using ConfigureNetworkConnectionProfileCallback =
-    std::function<bool(const NetworkConnectionProfile& network_connection_profile)>;
+using ConfigureNetworkConnectionProfileCallback = std::function<std::future<ConfigNetworkResult>(
+    const int32_t configuration_slot, const NetworkConnectionProfile& network_connection_profile)>;
 
 class ConnectivityManager {
 private:

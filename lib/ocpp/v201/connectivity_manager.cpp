@@ -11,6 +11,9 @@
 namespace {
 const auto WEBSOCKET_INIT_DELAY = std::chrono::seconds(2);
 const std::string VARIABLE_ATTRIBUTE_VALUE_SOURCE_INTERNAL = "internal";
+/// \brief Default timeout for the return value (future) of the `configure_network_connection_profile_callback`
+///        function.
+constexpr int32_t default_network_config_timeout_seconds = 60;
 } // namespace
 
 namespace ocpp {
@@ -170,14 +173,48 @@ void ConnectivityManager::init_websocket() {
     }
 
     const auto configuration_slot = network_connection_priorities.at(this->network_configuration_priority);
-    const auto connection_options = this->get_ws_connection_options(std::stoi(configuration_slot));
-    const auto network_connection_profile = this->get_network_connection_profile(std::stoi(configuration_slot));
+    const int config_slot_int = std::stoi(configuration_slot);
+    const auto network_connection_profile = this->get_network_connection_profile(config_slot_int);
+    // Not const as the iface member can be set by the configure network connection profile callback
+    auto connection_options = this->get_ws_connection_options(config_slot_int);
+    bool can_use_connection_profile = true;
 
-    if (!network_connection_profile.has_value() or
-        (this->configure_network_connection_profile_callback.has_value() and
-         !this->configure_network_connection_profile_callback.value()(network_connection_profile.value()))) {
-        EVLOG_warning << "NetworkConnectionProfile could not be retrieved or configuration of network with the given "
-                         "profile failed";
+    if (!network_connection_profile.has_value()) {
+        EVLOG_warning << "No network connection profile configured for " << config_slot_int;
+        can_use_connection_profile = false;
+    } else if (this->configure_network_connection_profile_callback.has_value()) {
+        EVLOG_debug << "Request to configure network connection profile " << config_slot_int;
+
+        std::future<ConfigNetworkResult> config_status = this->configure_network_connection_profile_callback.value()(
+            config_slot_int, network_connection_profile.value());
+        const int32_t config_timeout =
+            this->device_model.get_optional_value<int>(ControllerComponentVariables::NetworkConfigTimeout)
+                .value_or(default_network_config_timeout_seconds);
+
+        std::future_status status = config_status.wait_for(std::chrono::seconds(config_timeout));
+
+        switch (status) {
+        case std::future_status::deferred:
+        case std::future_status::timeout: {
+            EVLOG_warning << "Timeout configuring config slot: " << config_slot_int;
+            can_use_connection_profile = false;
+        }
+        case std::future_status::ready: {
+            ConfigNetworkResult result = config_status.get();
+            if (result.success and result.network_profile_slot == config_slot_int) {
+                EVLOG_debug << "Config slot " << config_slot_int << " is configured";
+                // Set interface or ip to connection options.
+                connection_options.iface = result.interface_address;
+            } else {
+                EVLOG_warning << "Could not configure config slot " << config_slot_int;
+                can_use_connection_profile = false;
+            }
+            break;
+        }
+        }
+    }
+
+    if (!can_use_connection_profile) {
         this->websocket_timer.timeout(
             [this]() {
                 this->next_network_configuration_priority();

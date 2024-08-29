@@ -143,8 +143,7 @@ struct Callbacks {
     std::optional<std::function<SetNetworkProfileStatusEnum(
         const int32_t configuration_slot, const NetworkConnectionProfile& network_connection_profile)>>
         validate_network_profile_callback;
-    std::optional<std::function<bool(const NetworkConnectionProfile& network_connection_profile)>>
-        configure_network_connection_profile_callback;
+    std::optional<ConfigureNetworkConnectionProfileCallback> configure_network_connection_profile_callback;
     std::optional<std::function<void(const ocpp::DateTime& currentTime)>> time_sync_callback;
 
     /// \brief callback to be called to congfigure ocpp message logging
@@ -235,7 +234,7 @@ public:
     /// \note At least one of the two params must be provided, otherwise libocpp will not know which interface is down.
     ///
     virtual void on_network_disconnected(const std::optional<int32_t> configuration_slot,
-                                 const std::optional<OCPPInterfaceEnum> ocpp_interface) = 0;
+                                         const std::optional<OCPPInterfaceEnum> ocpp_interface) = 0;
 
     /// \brief Chargepoint notifies about new firmware update status firmware_update_status. This function should be
     ///        called during a Firmware Update to indicate the current firmware_update_status.
