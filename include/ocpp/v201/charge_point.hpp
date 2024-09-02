@@ -236,6 +236,14 @@ public:
     virtual void on_network_disconnected(const std::optional<int32_t> configuration_slot,
                                          const std::optional<OCPPInterfaceEnum> ocpp_interface) = 0;
 
+    /// \brief Switch to a specific network connection profile given the configuration slot.
+    ///
+    /// Switch will only be done when the configuration slot has a higher priority.
+    ///
+    /// \param configuration_slot Slot in which the configuration is stored
+    /// \return true if the switch is possible.
+    virtual bool on_try_switch_network_connection_profile(const int32_t configuration_slot) = 0;
+
     /// \brief Chargepoint notifies about new firmware update status firmware_update_status. This function should be
     ///        called during a Firmware Update to indicate the current firmware_update_status.
     /// \param request_id   The request_id. When it is -1, it will not be included in the request.
@@ -893,6 +901,8 @@ public:
 
     void on_network_disconnected(const std::optional<int32_t> configuration_slot,
                                  const std::optional<OCPPInterfaceEnum> ocpp_interface) override;
+
+    bool on_try_switch_network_connection_profile(const int32_t configuration_slot) override;
 
     void on_firmware_update_status_notification(int32_t request_id,
                                                 const FirmwareStatusEnum& firmware_update_status) override;

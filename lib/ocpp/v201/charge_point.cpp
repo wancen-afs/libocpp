@@ -258,6 +258,10 @@ void ChargePoint::on_network_disconnected(const std::optional<int32_t> configura
     this->connectivity_manager->on_network_disconnected(configuration_slot, ocpp_interface);
 }
 
+bool ChargePoint::on_try_switch_network_connection_profile(const int32_t configuration_slot) {
+    return this->connectivity_manager->on_try_switch_network_connection_profile(configuration_slot);
+}
+
 void ChargePoint::on_firmware_update_status_notification(int32_t request_id,
                                                          const FirmwareStatusEnum& firmware_update_status) {
     if (this->firmware_status == firmware_update_status) {

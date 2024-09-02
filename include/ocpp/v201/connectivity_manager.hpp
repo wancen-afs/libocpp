@@ -125,6 +125,14 @@ public:
     void on_network_disconnected(const std::optional<int32_t> configuration_slot,
                                  const std::optional<OCPPInterfaceEnum> ocpp_interface);
 
+    /// \brief Switch to a specific network connection profile given the configuration slot.
+    ///
+    /// Switch will only be done when the configuration slot has a higher priority.
+    ///
+    /// \param configuration_slot Slot in which the configuration is stored
+    /// \return true if the switch is possible.
+    bool on_try_switch_network_connection_profile(const int32_t configuration_slot);
+
 private:
     /// \brief Init the websocket
     ///
@@ -149,7 +157,27 @@ private:
 
     /// \brief Reconnect with the give websocket \p reason
     ///
-    void reconnect(WebsocketCloseReason reason);
+    void reconnect(WebsocketCloseReason reason, std::optional<int> next_priority = std::nullopt);
+
+    ///
+    /// \brief Returns true if the provided configuration slot is of higher priority compared to the one currently
+    ///        in use.
+    /// \param new_configuration_slot   The configuration slot to check.
+    /// \return True when given slot is of higher priority.
+    ///
+    bool is_higher_priority_profile(const int new_configuration_slot);
+
+    ///
+    /// \brief Get the active network configuration slot in use.
+    /// \return The active slot the network is connected to or the pending slot.
+    ///
+    int get_active_network_configuration_slot();
+
+    /// \brief Get the priority of the given configuration slot.
+    /// \param configuration_slot   The configuration slot to get the priority from.
+    /// \return The priority if the configuration slot exists.
+    ///
+    std::optional<int> get_configuration_slot_priority(const int configuration_slot);
 };
 
 } // namespace v201
