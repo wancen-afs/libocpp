@@ -477,8 +477,7 @@ TEST_F(ChargePointFixture,
     callbacks.configure_network_connection_profile_callback = nullptr;
     EXPECT_FALSE(callbacks.all_callbacks_valid());
 
-    testing::MockFunction<bool(const NetworkConnectionProfile& network_connection_profile)>
-        configure_network_connection_profile_callback_mock;
+    testing::MockFunction<ConfigureNetworkConnectionProfileCallback> configure_network_connection_profile_callback_mock;
     callbacks.configure_network_connection_profile_callback =
         configure_network_connection_profile_callback_mock.AsStdFunction();
     EXPECT_TRUE(callbacks.all_callbacks_valid());
