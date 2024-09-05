@@ -163,11 +163,11 @@ ChargePoint::ChargePoint(const std::map<int32_t, int32_t>& evse_connector_struct
                                               std::bind(&ChargePoint::message_callback, this, std::placeholders::_1));
 
     this->connectivity_manager->set_websocket_connected_callback(
-        std::bind(&ChargePoint::on_websocket_connected, this, std::placeholders::_1, std::placeholders::_2));
+        std::bind(&ChargePoint::websocket_connected_callback, this, std::placeholders::_1, std::placeholders::_2));
     this->connectivity_manager->set_websocket_disconnected_callback(
-        std::bind(&ChargePoint::on_websocket_disconnected, this, std::placeholders::_1, std::placeholders::_2));
+        std::bind(&ChargePoint::websocket_disconnected_callback, this, std::placeholders::_1, std::placeholders::_2));
     this->connectivity_manager->set_websocket_connection_failed_callback(
-        std::bind(&ChargePoint::on_websocket_connection_failed, this, std::placeholders::_1));
+        std::bind(&ChargePoint::websocket_connection_failed, this, std::placeholders::_1));
 
     if (this->callbacks.configure_network_connection_profile_callback.has_value()) {
         this->connectivity_manager->set_configure_network_connection_profile_callback(
@@ -3726,8 +3726,8 @@ void ChargePoint::scheduled_check_v2g_certificate_expiration() {
             .value_or(12 * 60 * 60)));
 }
 
-void ChargePoint::on_websocket_connected(const int configuration_slot,
-                                         const NetworkConnectionProfile& network_connection_profile) {
+void ChargePoint::websocket_connected_callback(const int configuration_slot,
+                                               const NetworkConnectionProfile& network_connection_profile) {
     this->message_queue->resume(this->message_queue_resume_delay);
 
     const auto& security_profile_cv = ControllerComponentVariables::SecurityProfile;
@@ -3768,8 +3768,8 @@ void ChargePoint::on_websocket_connected(const int configuration_slot,
     }
 }
 
-void ChargePoint::on_websocket_disconnected(const int configuration_slot,
-                                            const NetworkConnectionProfile& network_connection_profile) {
+void ChargePoint::websocket_disconnected_callback(const int configuration_slot,
+                                                  const NetworkConnectionProfile& network_connection_profile) {
     this->message_queue->pause();
 
     // check if offline threshold has been defined
@@ -3786,7 +3786,7 @@ void ChargePoint::on_websocket_disconnected(const int configuration_slot,
     }
 }
 
-void ChargePoint::on_websocket_connection_failed(ConnectionFailedReason reason) {
+void ChargePoint::websocket_connection_failed(ConnectionFailedReason reason) {
     switch (reason) {
     case ConnectionFailedReason::InvalidCSMSCertificate:
         if (!this->skip_invalid_csms_certificate_notifications) {
