@@ -1149,6 +1149,13 @@ const RequiredComponentVariable& ChargingScheduleChargingRateUnit = {
         "RateUnit",
     }),
 };
+const ComponentVariable& IgnoredProfilePurposesOffline = {
+    ControllerComponents::SmartChargingCtrlr,
+    std::nullopt,
+    std::optional<Variable>({
+        "IgnoredProfilePurposesOffline",
+    }),
+};
 const ComponentVariable& TariffCostCtrlrAvailableTariff = {
     ControllerComponents::TariffCostCtrlr,
     std::nullopt,
